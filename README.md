@@ -27,7 +27,7 @@ It turns out for many LG outdoor units there are three primary ways to enable ce
 
 1. **Onboard Modbus** - unfortunately for my particular unit (Multi-V S), this was not a function I could find. 
 
-2. **Onboard Central Control pins** - some units have pins labeled Central Control or CENA and CENB. This is an RS485 interface, but speaks a proprietary protocol called LGAP (which seems to stand for something like LG Airconditioner Protocol). More on LGAP later, but there is no published spec that I've been able to find.
+2. **Onboard Central Control pins** - some units have pins labeled Central Control or CENA and CENB. This is an RS485 interface, but speaks a custom protocol called LGAP (which seems to stand for something like LG Airconditioner Protocol). More on LGAP later, but there is no published spec that I've been able to find.
 
 3. [**PI-485 extension board**](https://www.lgvrf.ca/en/products/pi~485) - for older units, you can use the PI-485 board which can attach to pins inside the unit and present an RS485 interface that speaks LGAP as described above.
 
@@ -60,10 +60,96 @@ Once I had the modbus gateway + esphome setup, I was pretty happy. I had a solut
 
 **But... what if we could avoid the modbus gateway altogether and speak the LGAP protocol directly instead?**
 
-I went into searching as much as I possibly could about the protocol. There were really limited amounts of information available publicly. But the fact that these gateways exist (including 3rd party ones from Intesis), tells me that the protocol can be reverse engineered.
+I went into searching as much as I possibly could about the protocol. There are really limited amounts of information available publicly. But the fact that these gateways exist (including 3rd party ones from Intesis), tells me that the protocol can be reverse engineered. 
 
-What we do know from public information is the following:
+**New goal: build a driver for esphome that uses LGAP to communicate directly and presents a standard climate entity to Home Assistant.**
 
-LGAP is a proprietary protocol built on top of an RS485 interface. The BAUD rate is 4800 bps with 8 data bits, no parity and 1 stop bit.
+What we do know from public about LGAP information is the following:
 
-Request packets seem to be 8 bytes in length and responses seem to be 16 bytes in length.
+
+|Name|Value|
+|-------|-------|
+|Interface|RS485|
+|Baud Rate| 4,800 bps|
+|Data Bits| 8 bits|
+|Parity| No Parity|
+|Stop Bits| 1 stop bit|
+|Request Length| 8 bytes|
+|Response Length| 16 bytes|
+
+<br/>
+
+#### LGAP Request
+
+As mentioned, it seems that standard requests are 8 bytes in length. I haven't been able to decode all the bytes yet, but the following so far makes sense:
+
+|Position|Sample Byte|Sample Binary|Setting|
+|--|--|--|--|
+|0|0|00000000|_Unknown_|
+|1|0|00000000|_Unknown_|
+|2|160|10100000|_Unknown_|
+|3|0|00000000|Zone Address - 0|
+|4|1|00000001|Request R/W - Read<br/>Power - On|
+|5|0|00000000|Swing - Off<br/>Mode - Cool<br/>Speed - Low|
+|6|8|00001000|Target Temp - 23|
+|7|252|11111100|Checksum|
+
+Setting request[4] to write instead of read will allow you to set the desired state of the Zone and you'll see the values reflected on the wall panels almost immediately.
+
+I've run a script to test request[0,1,2] with values from 0 to 255 and saved the results in CSV files stored in this repository. If anyone is interested in helping to analyse these bytes for what these 3 request bytes may refer to, I'd love the help.
+
+The following bytes were captured while Zone 0 was powered on and set to Cool, Low and 23 degrees celsius:
+
+* [Request Index 0](./ref/lgap-req-0.csv)
+* [Request Index 1](./ref/lgap-req-1.csv)
+* [Request Index 2](./ref/lgap-req-2.csv)
+
+<br/>
+
+#### LGAP Response
+
+If a bad request is sent with invalid values, the outdoor unit doesn't seem to respond with any bytes at all. If the request is valid, 16 bytes are returned and I've been able to decode the following:
+
+|Position|Sample Byte|Sample Binary|Setting|
+|--|--|--|--|
+|0|16|00010000|_Response type or number of bytes to follow?_|
+|1|3|00000011|Power - On<br/>_IDU Connected?_|
+|2|160|10100000|_Seems to always match request[2]_|
+|3|64|01000000|_Unknown_|
+|4|0|00000000|Zone Address|
+|5|0|00000000|_Unknown_|
+|6|16|00010000|Swing - Off<br/>Mode - Cool<br/>Fan Speed - Medium|
+|7|72|01001000|Target Temperature (Celsius) - 23|
+|8|122|01111010|Room Temperature (Celsius) - 25|
+|9|122|01111010|_Pipe In Temp?_ or<br/>_Target Temp Lower?_ - 25|
+|10|122|01111010|_Pipe Out Temp?_ or<br/>_Target Temp Upper?_ - 25|
+|11|40|00101000|_Unknown_|
+|12|0|00000000|_Unknown_|
+|13|24|00011000|_Unknown_|
+|14|51|00110011|_Unknown_|
+|15|121|01111001|Checksum|
+
+In some cases, multiple values are stored in a single byte such as the fan speed, mode and swing consolidated into byte 6. 
+
+After having implemented the Modbus Gateway previously, I know that there are many more values that can be extracted. These were values that were available as modbus registers, that I don't have the appropriate byte located for yet. The list of values we should be able to map are:
+
+|Field Name|Expected Value|Predicted Byte|
+|--|--|--|
+|Error Code|0-255|
+|Pipe In Temp|-99 to 99|Potentially 9|
+|Pipe Out Temp|-99 to 99|Potentially 10|
+|Target Temp Limit Upper|16-30|Potentially 9|
+|Target Temp Limit Lower|16-30|Potentially 10|
+|Indoor Unit Connected Status|0-1|Sharing 1|
+|Alarm|0-1|
+|Filter Alarm|0-1|
+|Filter Alarm Release|0-1|
+|Lock Remote Controller|0-1|
+|Lock Operate Mode|0-1|
+|Lock Fan Speed|0-1|
+|Lock Target Temp|0-1|
+|Lock Indoor Unit Address|0-1|
+
+If you have additional insight into how I can best decode these messages - I'm more than happy to accept advice or contributions. I'm sharing what I have so far so that we can build out a native integration for Home Assistant.
+
+Enjoy!
