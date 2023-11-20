@@ -2,24 +2,24 @@ on, 21 degrees, heat, low
 
 128  111  165  0   0  0  241  208
 16   2    165  64  0  0  20   70  131  134  140  40  0  24  51  12
-{"IsChecksumValid":false,"IsPoweredOn":false,"Mode":4,"Swing":0,"FanSpeed":1,"TargetTemperature":21,"RoomTemperature":18.828125,"Address":0}
+{"IsPoweredOn":false,"Mode":4,"Swing":0,"FanSpeed":1,"TargetTemperature":21,"RoomTemperature":18.828125,"Address":0}
 
 on, 24 degrees, heat, low
 
 128  111  165  0   0  0  241  208
 16   3    165  64  0  0  20   73  129  103  108  90  0  24  51  27
-{"IsChecksumValid":false,"IsPoweredOn":true,"Mode":4,"Swing":0,"FanSpeed":1,"TargetTemperature":24,"RoomTemperature":19.609375,"Address":0}
+{"IsPoweredOn":true,"Mode":4,"Swing":0,"FanSpeed":1,"TargetTemperature":24,"RoomTemperature":19.609375,"Address":0}
 
 
 on, 16 degrees, cool, high
 
 128  111  165  0  0  0  241  208
 16   3  165  64  0  0  48  65  129  113  103  40  0  24  51  96
-{"IsChecksumValid":false,"IsPoweredOn":true,"Mode":0,"Swing":0,"FanSpeed":3,"TargetTemperature":16,"RoomTemperature":19.609375,"Address":0}
+{"IsPoweredOn":true,"Mode":0,"Swing":0,"FanSpeed":3,"TargetTemperature":16,"RoomTemperature":19.609375,"Address":0}
 
 
 off, 16 degrees, cool, high
 
 128  111  165  0  0  0  241  208
 16  2  165  64  0  0  48  65  129  118  110  40  0  24  51  21
-{"IsChecksumValid":false,"IsPoweredOn":false,"Mode":0,"Swing":0,"FanSpeed":3,"TargetTemperature":16,"RoomTemperature":19.609375,"Address":0}
+{"IsPoweredOn":false,"Mode":0,"Swing":0,"FanSpeed":3,"TargetTemperature":16,"RoomTemperature":19.609375,"Address":0}
