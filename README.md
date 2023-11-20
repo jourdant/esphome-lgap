@@ -118,7 +118,7 @@ If a bad request is sent with invalid values, the outdoor unit doesn't seem to r
 |3|64|01000000|_Unknown_|
 |4|0|00000000|Zone Address|
 |5|0|00000000|_Unknown_|
-|6|16|00010000|Swing - Off<br/>Mode - Cool<br/>Fan Speed - Medium|
+|6|16|00010000|Swing - Off<br/>Mode - Cool<br/>Fan Speed - Low|
 |7|72|01001000|Target Temperature (Celsius) - 23|
 |8|122|01111010|Room Temperature (Celsius) - 25|
 |9|122|01111010|_Pipe In Temp?_ or<br/>_Target Temp Lower?_ - 25|
