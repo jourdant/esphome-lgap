@@ -1,0 +1,272 @@
+esphome:
+  name: hvac-01
+  friendly_name: hvac-01
+
+esp32:
+  board: esp32-c3-devkitm-1
+  variant: esp32c3
+  framework:
+    type: arduino
+
+
+logger:
+  #disable logging over UART
+  baud_rate: 0
+
+web_server:
+  port: 80
+  include_internal: True
+
+api:
+  encryption:
+    key: "<APIKEY>"
+
+ota:
+  password: "<OTAPASSWORD>"
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
+  ap:
+    ssid: "Hvac-01 Fallback Hotspot"
+    password: "<HOTSPOTPASSWORD>"
+
+captive_portal:
+
+#==============================
+
+light:
+  - platform: neopixelbus
+    id: led
+    type: GRB
+    variant: WS2811
+    pin: GPIO04
+    num_leds: 1
+    name: "NeoPixel Light"
+    internal: True
+    restore_mode: ALWAYS_OFF
+
+button:
+  - platform: restart
+    id: reboot_esp32
+    name: "Reboot ESP32"
+
+#==============================
+# uart and modbus
+#==============================
+
+uart:
+  id: modbus_uart1
+  tx_pin: 
+    number: GPIO10
+    inverted: true
+  rx_pin: 
+    number: GPIO03
+    inverted: true
+
+  baud_rate: 9600
+  stop_bits: 1
+  parity: NONE
+  debug: 
+
+modbus:
+  id: modbus1
+  uart_id: modbus_uart1
+  flow_control_pin: GPIO05
+
+modbus_controller:
+  - id: modbus_controller1
+    modbus_id: modbus1
+    address: 0x1
+    setup_priority: -10
+
+#==============================
+#   modbus coil registers
+#==============================
+
+switch:
+#zone 1
+  - platform: modbus_controller
+    modbus_controller_id: modbus_controller1
+    id: zone1_on_off
+    name: "Zone 1 - On/Off"
+    register_type: coil
+    address: 0x0000
+    bitmask: 1
+    entity_category: config
+    icon: "mdi:power-standby"
+    device_class: switch
+
+  - platform: modbus_controller
+    modbus_controller_id: modbus_controller1
+    id: zone1_auto_swing
+    name: "Zone 1 - Auto Swing"
+    register_type: coil
+    address: 0x0001
+    bitmask: 1
+    entity_category: config
+    icon: "mdi:slope-uphill"
+    device_class: switch
+
+#==============================
+#  modbus discrete registers
+#==============================
+
+binary_sensor:
+#zone 1
+  - platform: modbus_controller
+    modbus_controller_id: modbus_controller1
+    id: zone1_idu_connected
+    name: "Zone 1 - IDU Connected"
+    icon: "mdi:nfc-tap"
+    register_type: discrete_input
+    address: 0
+    bitmask: 1
+    device_class: connectivity
+    entity_category: diagnostic
+    
+    
+  - platform: modbus_controller
+    modbus_controller_id: modbus_controller1
+    id: zone1_alarm_activated
+    name: "Zone 1 - Alarm Activated"
+    icon: "mdi:alarm-light"
+    register_type: discrete_input
+    address: 1
+    bitmask: 1
+    device_class: problem
+    entity_category: diagnostic
+
+
+  - platform: modbus_controller
+    modbus_controller_id: modbus_controller1
+    id: zone1_filter_alarm_activated
+    name: "Zone 1 - Filter Alarm Activated"
+    icon: "mdi:alarm-light"
+    register_type: discrete_input
+    address: 2
+    bitmask: 1
+    device_class: problem
+    entity_category: diagnostic
+
+#mcu
+  - platform: gpio
+    pin: GPIO02
+    name: "On-board button"
+    internal: True
+
+#==============================
+#  read input registers
+#==============================
+
+sensor:
+#zone 1
+  - platform: modbus_controller
+    modbus_controller_id: modbus_controller1
+    id: zone1_error_connected
+    name: "Zone 1 - Error Code"
+    register_type: read
+    address: 0
+
+    value_type: U_WORD
+    icon: "mdi:alert-circle"
+    accuracy_decimals: 0
+
+  - platform: modbus_controller
+    modbus_controller_id: modbus_controller1
+    id: zone1_room_temperature
+    name: "Zone 1 - Room Temperature"
+    register_type: read
+    address: 1
+
+    value_type: U_WORD
+    state_class: measurement
+    device_class: temperature
+    icon: "mdi:temperature-celsius"
+    accuracy_decimals: 1
+    filters:
+      - multiply: 0.1
+
+  - platform: modbus_controller
+    modbus_controller_id: modbus_controller1
+    id: zone1_pipe_in_temperature
+    name: "Zone 1 - Pipe In Temperature"
+    register_type: read
+    address: 2
+
+    value_type: U_WORD
+    state_class: measurement
+    device_class: temperature
+    icon: "mdi:temperature-celsius"
+    accuracy_decimals: 1
+    filters:
+      - multiply: 0.1
+
+  - platform: modbus_controller
+    modbus_controller_id: modbus_controller1
+    id: zone1_pipe_out_temperature
+    name: "Zone 1 - Pipe Out Temperature"
+    register_type: read
+    address: 3
+
+    value_type: U_WORD
+    state_class: measurement
+    device_class: temperature
+    icon: "mdi:temperature-celsius"
+    accuracy_decimals: 1
+    filters:
+      - multiply: 0.1
+
+#==============================
+#  read holding registers
+#==============================
+
+select:
+#zone 1
+  - platform: modbus_controller
+    modbus_controller_id: modbus_controller1
+    id: zone1_operating_mode
+    name: "Zone 1 - Operating Mode"
+
+    address: 0
+    value_type: U_WORD
+    icon: "mdi:auto-mode"
+    optionsmap:
+      "Cooling": 0
+      "Dehumidifying": 1
+      "Fan": 2
+      "Auto": 3
+      "Heating": 4
+
+  - platform: modbus_controller
+    modbus_controller_id: modbus_controller1
+    id: zone1_fan_speed
+    name: "Zone 1 - Fan Speed"
+
+    address: 1
+    value_type: U_WORD
+    icon: "mdi:fan"
+    optionsmap:
+      "Low": 1
+      "Medium": 2
+      "High": 3
+      "Auto": 4
+
+number:
+#zone 1
+  - platform: modbus_controller
+    modbus_controller_id: modbus_controller1
+    id: zone1_target_temperature
+    name: "Zone 1 - Target Temperature"
+    address: 2
+    register_type: "holding"
+    value_type: U_WORD
+    device_class: temperature
+    mode: SLIDER
+    min_value: 16
+    max_value: 30
+    icon: "mdi:temperature-celsius"
+    unit_of_measurement: "°C"
+    multiply: 10
