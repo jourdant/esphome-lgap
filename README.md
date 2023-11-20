@@ -129,6 +129,8 @@ If a bad request is sent with invalid values, the outdoor unit doesn't seem to r
 |14|51|00110011|_Unknown_|
 |15|121|01111001|Checksum|
 
+Here are some [additional responses](./ref/sample_responses.txt) with more variability in the values.
+
 In some cases, multiple values are stored in a single byte such as the fan speed, mode and swing consolidated into byte 6. 
 
 After having implemented the Modbus Gateway previously, I know that there are many more values that can be extracted. These were values that were available as modbus registers, that I don't have the appropriate byte located for yet. The list of values we should be able to map are:
