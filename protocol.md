@@ -60,7 +60,7 @@ Format:
 ||```0000_0000```|Request Type||
 |5|```0000_00XX```|Mode|0: Cool<br/>1: Dehumidify<br/>2: Fan<br/>3: Auto<br/>4: Heat|
 ||```000X_XX00```|Swing|0: Off<br/>1: On|
-||```XXX0_0000```|Fan Speed|0: Low<br/>1: Medium<br/>3: High|
+||```XXX0_0000```|Fan Speed|0: Low<br/>1: Medium<br/>2: High|
 |6|```0000_0000```|Target Temperature|1-10**|
 |7|```0000_0000```|Checksum|0-255|
 
