@@ -55,14 +55,15 @@ Format:
 |0|```0000_0000```|Unknown|*|
 |1|```0000_0000```|Unknown|*|
 |2|```0000_0000```|Unknown|*|
-|3|```0000_0000```|Zone Number|0-255|
-|4|```0000_0000```|Request Type|0: Read<br/>2: Write|
-||```0000_0000```|Request Type||
+|3|```XXXX_XXXX```|Zone Number|0-255|
+|4|```0000_000X```|Power State|0: Off<br/>1: On|
+||```0000_00X0```|Request Type|0: Read<br/>1: Write|
+||```XXXX_XX00```|Unknwn||
 |5|```0000_00XX```|Mode|0: Cool<br/>1: Dehumidify<br/>2: Fan<br/>3: Auto<br/>4: Heat|
 ||```000X_XX00```|Swing|0: Off<br/>1: On|
 ||```XXX0_0000```|Fan Speed|0: Low<br/>1: Medium<br/>2: High|
-|6|```0000_0000```|Target Temperature|1-10**|
-|7|```0000_0000```|Checksum|0-255|
+|6|```0000_XXXX```|Target Temperature|1-10**|
+|7|```XXXX_XXXX```|Checksum|0-255|
 
 <br/>
 
