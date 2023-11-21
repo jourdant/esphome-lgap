@@ -79,78 +79,10 @@ What we do know from public about LGAP information is the following:
 
 <br/>
 
-#### LGAP Request
+I like the way that [@JanM321](https://github.com/JanM321) laid out the protocol in the method mentioned in inspiration. I will follow a similar pattern in this repo.
 
-As mentioned, it seems that standard requests are 8 bytes in length. I haven't been able to decode all the bytes yet, but the following so far makes sense:
-
-|Position|Sample Byte|Sample Binary|Setting|
-|--|--|--|--|
-|0|0|00000000|_Unknown_|
-|1|0|00000000|_Unknown_|
-|2|160|10100000|_Unknown_|
-|3|0|00000000|Zone Address - 0|
-|4|1|00000001|Request R/W - Read<br/>Power - On|
-|5|0|00000000|Swing - Off<br/>Mode - Cool<br/>Speed - Low|
-|6|8|00001000|Target Temp - 23|
-|7|252|11111100|Checksum|
-
-Setting request[4] to write instead of read will allow you to set the desired state of the Zone and you'll see the values reflected on the wall panels almost immediately.
-
-I've run a script to test request[0,1,2] with values from 0 to 255 and saved the results in CSV files stored in this repository. If anyone is interested in helping to analyse these bytes for what these 3 request bytes may refer to, I'd love the help.
-
-The following bytes were captured while Zone 0 was powered on and set to Cool, Low and 23 degrees celsius:
-
-* [Request Index 0](./ref/lgap-req-0.csv)
-* [Request Index 1](./ref/lgap-req-1.csv)
-* [Request Index 2](./ref/lgap-req-2.csv)
-
-<br/>
-
-#### LGAP Response
-
-If a bad request is sent with invalid values, the outdoor unit doesn't seem to respond with any bytes at all. If the request is valid, 16 bytes are returned and I've been able to decode the following:
-
-|Position|Sample Byte|Sample Binary|Setting|
-|--|--|--|--|
-|0|16|00010000|_Response type or number of bytes to follow?_|
-|1|3|00000011|Power - On<br/>_IDU Connected?_|
-|2|160|10100000|_Seems to always match request[2]_|
-|3|64|01000000|_Unknown_|
-|4|0|00000000|Zone Address|
-|5|0|00000000|_Unknown_|
-|6|16|00010000|Swing - Off<br/>Mode - Cool<br/>Fan Speed - Low|
-|7|72|01001000|Target Temperature (Celsius) - 23|
-|8|122|01111010|Room Temperature (Celsius) - 25|
-|9|122|01111010|_Pipe In Temp?_ or<br/>_Target Temp Lower?_ - 25|
-|10|122|01111010|_Pipe Out Temp?_ or<br/>_Target Temp Upper?_ - 25|
-|11|40|00101000|_Unknown_|
-|12|0|00000000|_Unknown_|
-|13|24|00011000|_Unknown_|
-|14|51|00110011|_Unknown_|
-|15|121|01111001|Checksum|
-
-Here are some [additional responses](./ref/sample_responses.txt) with more variability in the values.
-
-In some cases, multiple values are stored in a single byte such as the fan speed, mode and swing consolidated into byte 6. 
-
-After having implemented the Modbus Gateway previously, I know that there are many more values that can be extracted. These were values that were available as modbus registers, that I don't have the appropriate byte located for yet. The list of values we should be able to map are:
-
-|Field Name|Expected Value|Predicted Byte|
-|--|--|--|
-|Error Code|0-255|
-|Pipe In Temp|-99 to 99|Potentially 9|
-|Pipe Out Temp|-99 to 99|Potentially 10|
-|Target Temp Limit Upper|16-30|Potentially 9|
-|Target Temp Limit Lower|16-30|Potentially 10|
-|Indoor Unit Connected Status|0-1|Sharing 1|
-|Alarm|0-1|
-|Filter Alarm|0-1|
-|Filter Alarm Release|0-1|
-|Lock Remote Controller|0-1|
-|Lock Operate Mode|0-1|
-|Lock Fan Speed|0-1|
-|Lock Target Temp|0-1|
-|Lock Indoor Unit Address|0-1|
+* [LGAP Request](./protocol.md#lgap-request)
+* [LGAP Response](./protocol.md#lgap-response)
 
 If you have additional insight into how I can best decode these messages - I'm more than happy to accept advice or contributions. I'm sharing what I have so far so that we can build out a native integration for Home Assistant.
 
