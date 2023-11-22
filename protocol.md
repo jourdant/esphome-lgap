@@ -14,7 +14,7 @@ The LGAP protocol leverages an RS485 interface at a baud rate of 4,800 bps at 8N
 
 ## Checksum
 
-The checksum formula seems to be the same as what is used in the LG Wall Controller Protocol - which is promising. It can be calculated like follows:
+The checksum formula seems to be the same as what is used in the [LG Wall Controller Protocol](https://github.com/JanM321/esphome-lg-controller/blob/main/protocol.md) - which is promising. It can be calculated like follows:
 
 1. Sum all non-checksum bytes (packet length - 1)
 2. Modulo by 256 if you are using a non-overflow type. This step is optional in most languages if you are using the byte type, but it's a harmless step to have in place regardless
