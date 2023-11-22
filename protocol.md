@@ -12,12 +12,6 @@ The LGAP protocol leverages an RS485 interface at a baud rate of 4,800 bps at 8N
 
 **IMPORTANT: All temperatures sent and received are in degrees celsius.**
 
-## Unknown Values
-
-There are still plenty of values I'm not sure of. One thing that helps a lot however, is referring to the Modbus registers of the official LGAP->Modbus RTU gateway: PMBUSB00A. Appendix 1 of the [Installation Guide](https://api.library.loxone.com/downloader/file/246/LG%20PMBUSB00A%20%20Installation%20guide.pdf) has all the possible values that can be read and written through the Modbus gateway. This tells us that all these settings should be available to use through the LGAP request/response messages.
-
-If anyone would like to propose settings to investigate from this list against any of the bytes below, I'd more than welcome the help and insights!
-
 ## Checksum
 
 The checksum formula seems to be the same as what is used in the LG Wall Controller Protocol - which is promising. It can be calculated like follows:
@@ -84,9 +78,9 @@ Format:
 
 |Byte|Bits|Description|Possible Values|
 |--|--|--|--|
-|0|```XXXX_XXXX```|_Message Length_ or<br/>_Message Type_|Always 16|
+|0|```XXXX_XXXX```|_Response Length?_ or<br/>_Response Type?_|Always 16|
 |1|```0000_000X```|Power State|0: Off<br/>1: On|
-||```0000_00X0```|_IDU Connected_|0: False<br/>1: True|
+||```0000_00X0```|_IDU Connected?_|0: False<br/>1: True|
 ||```XXXX_XX00```|Unknown||
 |2|```XXXX_XXXX```|Unknown|Always matches request[2]*|
 |3|```0000_0000```|Unknown||
@@ -111,3 +105,40 @@ Format:
 _* Byte 2 - This value so far always seems to match the byte from request[2]. Potentially this can be used as a way to validate the response for a given request?_
 
 _** Byte 6,7,8?,9? - Temperature values are calculated by taking the number and doing a bitwise AND with 0xF (15) then adding 15. Sample: ```(122 & 15) + 15 = 25 degrees celsius```._
+
+
+## Unknown Values
+
+There are still plenty of values I'm not sure of. One thing that helps a lot however, is referring to the Modbus registers of the official LGAP->Modbus RTU gateway: PMBUSB00A. Appendix 1 of the [Installation Guide](https://api.library.loxone.com/downloader/file/246/LG%20PMBUSB00A%20%20Installation%20guide.pdf) has all the possible values that can be read and written through the Modbus gateway. This tells us that all these settings should be available to use through the LGAP request/response messages.
+
+<br/>
+
+### Unmapped Request Values
+
+|Description|Possible Values|Possible Byte|
+|--|--|--|
+|Filter Alarm Release|0-1||
+
+<br/>
+
+### Unmapped Response Values
+
+|Description|Possible Values|Possible Byte|
+|--|--|--|
+|Error Code|0-255||
+|Pipe In Temperature|-99-99|request[9,10]|
+|Pipe Out Temperature|-99-99|request[9,10]|
+|Target Temperature Limit Lower|-99-99|request[9,10]|
+|Target Temperature Limit Upper|-99-99|request[9,10]|
+|Indoor Unit Connected Status|0-1|request[1]|
+|Alarm Activated|0-1||
+|Filter Alarm Activated|0-1||
+|Lock Remote Controller|0-1||
+|Lock Operate Mode|0-1||
+|Lock Fan Speed|0-1||
+|Lock Target Temperature|0-1||
+|Lock Indoor Unit Address|0-1||
+
+<br/>
+
+If anyone would like to propose settings to investigate from this list against any of the bytes below, I'd more than welcome the help and insights!
