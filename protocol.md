@@ -125,12 +125,12 @@ There are still plenty of values I'm not sure of. One thing that helps a lot how
 
 |Description|Possible Values|Possible Byte|
 |--|--|--|
-|Error Code|0-255||
 |Pipe In Temperature|0-255|response[9,10]|
 |Pipe Out Temperature|0-255|response[9,10]|
 |Target Temperature Limit Lower|0-255|response[9,10]|
 |Target Temperature Limit Upper|0-255|response[9,10]|
 |Indoor Unit Connected Status|0-1|response[1]|
+|Alarm Code|0-255||
 |Alarm Activated|0-1||
 |Filter Alarm Activated|0-1||
 |Lock Remote Controller|0-1||
