@@ -38,6 +38,8 @@ Input bytes: ```16  2  160  64  0  0  16  72  121  127  127  40  0  24  51 | 97`
 
 Checksum: ```(745 % 256 ^ 85) = 97```
 
+**^ = XOR**
+
 ## Message Format
 
 From what I've found so far, there is a single 8 byte request message which returns a single 16 byte response message.
@@ -67,9 +69,9 @@ Format:
 
 <br/>
 
-_* Byte 0,1,2 I have written a script to send every value 0-255 on each of these bytes and recorded the values that returned responses with valid checksums. This may help to figure out the important bytes/acceptable values. [Byte 0 Analysis](./ref/lgap-req-0.csv), [Byte 1 Analysis](./ref/lgap-req-1.csv), [Byte 2 Analysis](./ref/lgap-req-2.csv)_
+_* Byte 0,1,2 - I've written a script to send every value 0-255 on each of these bytes and recorded the values that returned responses with valid checksums. This may help to figure out the important bytes/acceptable values. [Byte 0 Analysis](./ref/lgap-req-0.csv), [Byte 1 Analysis](./ref/lgap-req-1.csv), [Byte 2 Analysis](./ref/lgap-req-2.csv)_
 
-_** Byte 6 / Target Temperature is sent by taking the expected temperature and subtracting 15. The minimum temperature is 16 and maximum temperature is 30. Therefore the lowest value to send would be 1. The result would be seeing 16 degrees reflected on the wall panel._
+_** Byte 6 - Target Temperature is sent by taking the expected temperature and subtracting 15. The minimum temperature is 16 and maximum temperature is 30. Therefore the lowest value to send would be 1. The result would be seeing 16 degrees reflected on the wall panel._
 
 
 ### LGAP Response
@@ -87,19 +89,25 @@ Format:
 ||```0000_00X0```|_IDU Connected_|0: False<br/>1: True|
 ||```XXXX_XX00```|Unknown||
 |2|```XXXX_XXXX```|Unknown|Always matches request[2]*|
-|3|```XXXX_XXXX```|Unknown||
+|3|```0000_0000```|Unknown||
 |4|```XXXX_XXXX```|Zone Number|0-255|
-|5|```0000_0XXX```|Mode|Mode|0: Cool<br/>1: Dehumidify<br/>2: Fan<br/>3: Auto<br/>4: Heat|
+|5|```0000_0000```|Unknown||
+|6|```0000_0XXX```|Mode|Mode|0: Cool<br/>1: Dehumidify<br/>2: Fan<br/>3: Auto<br/>4: Heat|
 ||```0000_X000```|Swing|0: Off<br/>1: On|
 ||```0XXX_0000```|Fan Speed|0: Low<br/>1: Medium<br/>2: High|
 ||```X000_0000```|Unknown||
-|6|```0000_00X0```|Request Type|0: Read<br/>1: Write|
-|7|```XXXX_XX00```|Unknown||
-|8|```0000_00XX```|Mode|0: Cool<br/>1: Dehumidify<br/>2: Fan<br/>3: Auto<br/>4: Heat|
-|9|```000X_XX00```|Swing|0: Off<br/>1: On|
-|10|```XXX0_0000```|Fan Speed|0: Low<br/>1: Medium<br/>2: High|
-|11|```0000_XXXX```|Target Temperature|1-10**|
-|12|```XXXX_XXXX```|Checksum|0-255|
-|13|```XXXX_XXXX```|Checksum|0-255|
-|14|```XXXX_XXXX```|Checksum|0-255|
+|7|```XXXX_XXXX```|Target Temperature|0-255**|
+|8|```XXXX_XXXX```|Room Temperature|0-255**|
+|9|```XXXX_XXXX```|_Pipe In Temp?_ or<br/>_Target Temp Lower?_|0-255**|
+|10|```XXXX_XXXX```|_Pipe Out Temp?_ or<br/>_Target Temp Upper?_|0-255**|
+|11|```0000_0000```|Unknown||
+|12|```0000_0000```|Unknown||
+|13|```0000_0000```|Unknown||
+|14|```0000_0000```|Unknown||
 |15|```XXXX_XXXX```|Checksum|0-255|
+
+<br/>
+
+_* Byte 2 - This value so far always seems to match the byte from request[2]. Potentially this can be used as a way to validate the response for a given request?_
+
+_** Byte 6,7,8?,9? - Temperature values are calculated by taking the number and doing a bitwise AND with 0xF (15) then adding 15. Sample: ```(122 & 15) + 15 = 25 degrees celsius```._
