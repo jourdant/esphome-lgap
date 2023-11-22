@@ -58,7 +58,7 @@ Format:
 |3|```XXXX_XXXX```|Zone Number|0-255|
 |4|```0000_000X```|Power State|0: Off<br/>1: On|
 ||```0000_00X0```|Request Type|0: Read<br/>1: Write|
-||```XXXX_XX00```|Unknwn||
+||```XXXX_XX00```|Unknown||
 |5|```0000_00XX```|Mode|0: Cool<br/>1: Dehumidify<br/>2: Fan<br/>3: Auto<br/>4: Heat|
 ||```000X_XX00```|Swing|0: Off<br/>1: On|
 ||```XXX0_0000```|Fan Speed|0: Low<br/>1: Medium<br/>2: High|
@@ -70,3 +70,36 @@ Format:
 _* Byte 0,1,2 I have written a script to send every value 0-255 on each of these bytes and recorded the values that returned responses with valid checksums. This may help to figure out the important bytes/acceptable values. [Byte 0 Analysis](./ref/lgap-req-0.csv), [Byte 1 Analysis](./ref/lgap-req-1.csv), [Byte 2 Analysis](./ref/lgap-req-2.csv)_
 
 _** Byte 6 / Target Temperature is sent by taking the expected temperature and subtracting 15. The minimum temperature is 16 and maximum temperature is 30. Therefore the lowest value to send would be 1. The result would be seeing 16 degrees reflected on the wall panel._
+
+
+### LGAP Response
+
+So far from all requests I've sent over the interface, it has always been either 16 bytes or 0 bytes returned. If the request is invalid, 0 bytes are returned. 
+
+The values in _italics_ are possible values that I haven't proven yet.
+
+Format:
+
+|Byte|Bits|Description|Possible Values|
+|--|--|--|--|
+|0|```XXXX_XXXX```|_Message Length_ or<br/>_Message Type_|Always 16|
+|1|```0000_000X```|Power State|0: Off<br/>1: On|
+||```0000_00X0```|_IDU Connected_|0: False<br/>1: True|
+||```XXXX_XX00```|Unknown||
+|2|```XXXX_XXXX```|Unknown|Always matches request[2]*|
+|3|```XXXX_XXXX```|Unknown||
+|4|```XXXX_XXXX```|Zone Number|0-255|
+|5|```0000_0XXX```|Mode|Mode|0: Cool<br/>1: Dehumidify<br/>2: Fan<br/>3: Auto<br/>4: Heat|
+||```0000_X000```|Swing|0: Off<br/>1: On|
+||```0XXX_0000```|Fan Speed|0: Low<br/>1: Medium<br/>2: High|
+||```X000_0000```|Unknown||
+|6|```0000_00X0```|Request Type|0: Read<br/>1: Write|
+|7|```XXXX_XX00```|Unknown||
+|8|```0000_00XX```|Mode|0: Cool<br/>1: Dehumidify<br/>2: Fan<br/>3: Auto<br/>4: Heat|
+|9|```000X_XX00```|Swing|0: Off<br/>1: On|
+|10|```XXX0_0000```|Fan Speed|0: Low<br/>1: Medium<br/>2: High|
+|11|```0000_XXXX```|Target Temperature|1-10**|
+|12|```XXXX_XXXX```|Checksum|0-255|
+|13|```XXXX_XXXX```|Checksum|0-255|
+|14|```XXXX_XXXX```|Checksum|0-255|
+|15|```XXXX_XXXX```|Checksum|0-255|

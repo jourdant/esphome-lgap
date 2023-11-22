@@ -21,7 +21,7 @@ One day [a video](https://www.youtube.com/embed/Xuj2YFZ5zME?si=3Ovf-9DifcNpapcV)
 
 <br/>
 
-### Direct Integration Options
+## Direct Integration Options
 
 It turns out for many LG outdoor units there are three primary ways to enable central control:
 
@@ -37,7 +37,7 @@ It turns out for many LG outdoor units there are three primary ways to enable ce
 
 <br/>
 
-### Starting with PMBUSB00A
+## Starting with PMBUSB00A
 I managed to source one of these gateways and wire it up to the outdoor unit. It was really easy as the [installation guide](https://api.library.loxone.com/downloader/file/246/LG%20PMBUSB00A%20%20Installation%20guide.pdf) provided plenty of detail for the wiring and the detailing of the Modbus registers. 
 
 For the integration between the PMBUSB00A and Home Assistant, I used a [LILYGO T-RSC3](https://www.lilygo.cc/products/t-rsc3) which is an ESP32 based board with a dedicated isolated RS485 and RS232 modules onboard. Being ESP32 based means that I can flash the device with esphome and use the yaml modbus definitions to publish live entities to Home Assistant with no custom code!
@@ -54,7 +54,7 @@ You'll notice the temperatures haven't been normalised in that screenshot - they
 
 <br/>
 
-### Going direct with LGAP
+## Going direct with LGAP
 
 Once I had the modbus gateway + esphome setup, I was pretty happy. I had a solution that allowed the wall panels to operate while still having immediate control (plus automations) through Home Assistant. 
 
@@ -80,6 +80,10 @@ What we do know from public about LGAP information is the following:
 <br/>
 
 I like the way that [@JanM321](https://github.com/JanM321) laid out the protocol in the method mentioned in inspiration. I will follow a similar pattern in this repo.
+
+## [LGAP Protocol](./protocol.md)
+
+I've done my best to document my findings so far and collated them into this page [here](./protocol.md). There's plenty more detail and I'm welcoming contributions.
 
 * [LGAP Request](./protocol.md#lgap-request)
 * [LGAP Response](./protocol.md#lgap-response)
