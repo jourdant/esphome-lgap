@@ -38,7 +38,7 @@ Checksum: ```(745 % 256 ^ 85) = 97```
 
 From what I've found so far, there is a single 8 byte request message which returns a single 16 byte response message.
 
-#### LGAP Request
+### LGAP Request
 
 The request message is used to query the current state of the specified zone or Indoor Unit (IDU). For ODUs with only a single IDU connected, you will use Zone Number 0. For ODUs with multiple IDUs attached, you will need to refer to the zone number programmed into each IDU and subtract 1 due to the zones being zero indexed. There are instructions on YouTube for retrieving the Zone Number from either the wall panel or remote.
 
