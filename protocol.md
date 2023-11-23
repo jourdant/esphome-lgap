@@ -48,16 +48,17 @@ Format:
 
 |Byte|Bits|Description|Possible Values|
 |--|--|--|--|
-|0|```0000_0000```|Unknown|*|
-|1|```0000_0000```|Unknown|*|
-|2|```0000_0000```|Unknown|*|
+|0|```XXXX_XXXX```|Unknown|*|
+|1|```XXXX_XXXX```|Unknown|*|
+|2|```XXXX_XXXX```|Unknown|*|
 |3|```XXXX_XXXX```|Zone Number|0-255|
 |4|```0000_000X```|Power State|0: Off<br/>1: On|
 ||```0000_00X0```|Request Type|0: Read<br/>1: Write|
 ||```XXXX_XX00```|Unknown||
 |5|```0000_00XX```|Mode|0: Cool<br/>1: Dehumidify<br/>2: Fan<br/>3: Auto<br/>4: Heat|
-||```000X_XX00```|Swing|0: Off<br/>1: On|
-||```XXX0_0000```|Fan Speed|0: Low<br/>1: Medium<br/>2: High|
+||```0000_0X00```|Unknown||
+||```0000_X000```|Swing|0: Off<br/>1: On|
+||```00XX_0000```|Fan Speed|0: Low<br/>1: Medium<br/>2: High|
 |6|```0000_XXXX```|Target Temperature|1-10**|
 |7|```XXXX_XXXX```|Checksum|0-255|
 
@@ -83,15 +84,15 @@ Format:
 ||```0000_00X0```|_IDU Connected?_|0: False<br/>1: True|
 ||```XXXX_XX00```|Unknown||
 |2|```XXXX_XXXX```|Unknown|Always matches request[2]*|
-|3|```0000_0000```|Unknown||
+|3|```XXXX_XXXX```|Unknown||
 |4|```XXXX_XXXX```|Zone Number|0-255|
-|5|```0000_0000```|Unknown||
+|5|```XXXX_XXXX```|Unknown||
 |6|```0000_0XXX```|Mode|Mode|0: Cool<br/>1: Dehumidify<br/>2: Fan<br/>3: Auto<br/>4: Heat|
 ||```0000_X000```|Swing|0: Off<br/>1: On|
 ||```0XXX_0000```|Fan Speed|0: Low<br/>1: Medium<br/>2: High|
 ||```X000_0000```|Unknown||
-|7|```XXXX_XXXX```|Target Temperature|0-255**|
-|8|```XXXX_XXXX```|Room Temperature|0-255**|
+|7|```0000_XXXX```|Target Temperature|0-255**|
+|8|```0000_XXXX```|Room Temperature|0-255**|
 |9|```XXXX_XXXX```|_Pipe In Temp?_ or<br/>_Target Temp Lower?_|0-255**|
 |10|```XXXX_XXXX```|_Pipe Out Temp?_ or<br/>_Target Temp Upper?_|0-255**|
 |11|```0000_0000```|Unknown||
