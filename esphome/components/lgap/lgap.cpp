@@ -155,9 +155,7 @@ namespace esphome
       while (this->available() && (this->state_ == 1 || this->state_ == 2))
       {
         if (this->debug_ == true)
-          ESP_LOGV(TAG, "State: 1");
-        if (this->debug_ == true)
-          ESP_LOGV(TAG, "Trying to read...");
+          ESP_LOGV(TAG, "Trying to read from UART...");
 
         // handle reading timeouts
         if (now - this->last_received_time_ > this->receive_wait_time_)
