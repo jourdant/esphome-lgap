@@ -127,7 +127,7 @@ namespace esphome
           // retrieve lgap message from device if it has a valid zone number
           if (this->devices_[this->last_zone_checked_index_]->zone_number > -1)
           {
-            ESP_LOGV(TAG, "LGAP requesting update from zone %d (0X%x)", this->devices_[this->last_zone_checked_index_]->zone_number, this->devices_[this->last_zone_checked_index_]->zone_number);
+            ESP_LOGV(TAG, "LGAP requesting update from zone %d", this->devices_[this->last_zone_checked_index_]->zone_number);
 
             this->tx_buffer_.clear();
             this->devices_[this->last_zone_checked_index_]->generate_lgap_request(*&this->tx_buffer_);
@@ -152,7 +152,7 @@ namespace esphome
         ESP_LOGV(TAG, "Available: %d, State: %d", this->available(), this->state_);
 
       // 3. read the response (only read when expecting a response)
-      while (this->available() && this->state_ == 1)
+      while (/*this->available() && */this->state_ == 1 || this->state_ == 2)
       {
         if (this->debug_ == true)
           ESP_LOGV(TAG, "State: 1");
