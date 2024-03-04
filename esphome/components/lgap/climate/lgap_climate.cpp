@@ -233,6 +233,7 @@ namespace esphome
       message[7] = this->parent_->calculate_checksum(message);
     }
 
+    //todo: add handling for when mode change is requested but mode is already on with another zone, ie can't choose heat when cool is already on
     void LGAPHVACClimate::handle_on_message_received(std::vector<uint8_t> &message)
     {
       ESP_LOGV(TAG, "LGAP message received");

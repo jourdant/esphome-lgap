@@ -152,7 +152,7 @@ namespace esphome
         ESP_LOGV(TAG, "Available: %d, State: %d", this->available(), this->state_);
 
       // 3. read the response (only read when expecting a response)
-      while (/*this->available() && */this->state_ == 1 || this->state_ == 2)
+      while (this->available() && (this->state_ == 1 || this->state_ == 2))
       {
         if (this->debug_ == true)
           ESP_LOGV(TAG, "State: 1");
