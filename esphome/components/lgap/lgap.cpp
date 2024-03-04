@@ -29,10 +29,10 @@ namespace esphome
     // the checksum method is the same as the LG wall controller
     // borrowed this checksum function from:
     // https://github.com/JanM321/esphome-lg-controller/blob/998b78a212f798267feca0a91475726516228b56/esphome/lg-controller.h#L631C1-L637C6
-    unsigned char LGAP::calculate_checksum(const std::vector<unsigned char> &data)
+    uint8_t LGAP::calculate_checksum(const std::vector<uint8_t> &data)
     {
-      unsigned char csum = 0;
-      for (unsigned char i = 0; i < data.size() - 1; i++)
+      uint8_t csum = 0;
+      for (uint8_t i = 0; i < data.size() - 1; i++)
       {
         csum += data[i];
       }
@@ -156,7 +156,7 @@ namespace esphome
         }
 
         // read byte and process
-        unsigned char c;
+        uint8_t c;
         read_byte(&c);
         this->last_received_time_ = now;
         if (this->debug_ == true) ESP_LOGV(TAG, "LGAP received Byte  %d (0X%x)", c, c);

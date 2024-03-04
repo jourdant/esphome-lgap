@@ -16,16 +16,16 @@ namespace esphome
         virtual void control(const esphome::climate::ClimateCall &call) override;
 
       protected:
-        unsigned char power_state_{0};
-        unsigned char swing_{0};
-        unsigned char mode_{0};
-        unsigned char fan_speed_{0};
+        uint8_t power_state_{0};
+        uint8_t swing_{0};
+        uint8_t mode_{0};
+        uint8_t fan_speed_{0};
 
         float current_temperature_{0.0f};
         float target_temperature_{0.0f};
 
-        void handle_on_message_received(std::vector<unsigned char> &message) override;
-        void handle_generate_lgap_request(std::vector<unsigned char> &message) override;
+        void handle_on_message_received(std::vector<uint8_t> &message) override;
+        void handle_generate_lgap_request(std::vector<uint8_t> &message) override;
       };
 
   } // namespace lgap

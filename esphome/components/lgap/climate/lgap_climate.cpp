@@ -45,6 +45,8 @@ namespace esphome
       if (std::isnan(this->target_temperature)) {
         this->target_temperature = 24;
       }
+
+      //todo: initialise the current temp too
     }
 
     esphome::climate::ClimateTraits LGAPHVACClimate::traits()
@@ -212,7 +214,7 @@ namespace esphome
       }
     }
 
-    void LGAPHVACClimate::handle_generate_lgap_request(std::vector<unsigned char> &message)
+    void LGAPHVACClimate::handle_generate_lgap_request(std::vector<uint8_t> &message)
     {
       //only create a write request if there is a pending message
       int write_state = this->write_update_pending ? 2 : 0;
@@ -231,7 +233,7 @@ namespace esphome
       message[7] = this->parent_->calculate_checksum(message);
     }
 
-    void LGAPHVACClimate::handle_on_message_received(std::vector<unsigned char> &message)
+    void LGAPHVACClimate::handle_on_message_received(std::vector<uint8_t> &message)
     {
       ESP_LOGV(TAG, "LGAP message received");
 
@@ -244,8 +246,8 @@ namespace esphome
       bool publish_update = false;
 
       // process clean message as checksum already checked before reaching this point
-      unsigned char power_state = (message[1] & 1);
-      unsigned char mode = (message[6] & 7);
+      uint8_t power_state = (message[1] & 1);
+      uint8_t mode = (message[6] & 7);
 
       //power state and mode
       //home assistant climate treats them as a single entity
@@ -274,7 +276,7 @@ namespace esphome
       }
 
       //swing options
-      unsigned char swing = (message[6] >> 3) & 1;
+      uint8_t swing = (message[6] >> 3) & 1;
       if (swing != this->swing_) {
         this->swing_ = swing;
         publish_update = true;
@@ -290,7 +292,7 @@ namespace esphome
       }
 
       //fan speed
-      unsigned char fan_speed = ((message[6] >> 4) & 7);
+      uint8_t fan_speed = ((message[6] >> 4) & 7);
       if (fan_speed != this->fan_speed_) {
         this->fan_speed_ = fan_speed;
         publish_update = true;

@@ -14,7 +14,7 @@ namespace esphome
     class LGAP : public uart::UARTDevice, public Component
     {
       public:
-        unsigned char calculate_checksum(const std::vector<unsigned char> &data);
+        uint8_t calculate_checksum(const std::vector<uint8_t> &data);
         const char *const TAG = "lgap";
 
         // load this class after the UART is instantiated
@@ -54,8 +54,8 @@ namespace esphome
         uint32_t last_sent_time_{0};
         uint32_t last_received_time_{0};
 
-        std::vector<unsigned char> rx_buffer_;
-        std::vector<unsigned char> tx_buffer_;
+        std::vector<uint8_t> rx_buffer_;
+        std::vector<uint8_t> tx_buffer_;
 
         std::vector<LGAPDevice *> devices_{};
 

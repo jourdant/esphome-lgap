@@ -18,8 +18,8 @@ namespace esphome
         void set_parent(LGAP *parent) { parent_ = parent; }
         void set_zone_number(int zone_number) { this->zone_number = zone_number; }
 
-        void on_message_received(std::vector<unsigned char> &message);
-        void generate_lgap_request(std::vector<unsigned char> &message);
+        void on_message_received(std::vector<uint8_t> &message);
+        void generate_lgap_request(std::vector<uint8_t> &message);
         
       protected:
         friend LGAP;
@@ -27,8 +27,8 @@ namespace esphome
 
         int zone_number{-1};
 
-        virtual void handle_on_message_received(std::vector<unsigned char> &message) = 0;
-        virtual void handle_generate_lgap_request(std::vector<unsigned char> &message) = 0;
+        virtual void handle_on_message_received(std::vector<uint8_t> &message) = 0;
+        virtual void handle_generate_lgap_request(std::vector<uint8_t> &message) = 0;
     };
 
   } // namespace lgap
