@@ -163,7 +163,9 @@ namespace esphome
           if (this->debug_ == true)
             ESP_LOGV(TAG, "Last receive time exceeded. Clearing buffer...");
           this->rx_buffer_.clear();
-          this->flush();
+          while (this->available()) {
+            read_byte(nullptr);
+          }
           this->state_ = 0;
           break;
         }
