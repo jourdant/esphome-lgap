@@ -33,7 +33,7 @@ namespace esphome
     uint8_t LGAP::calculate_checksum(const std::vector<uint8_t> &data)
     {
       size_t result = 0;
-      for (size_t i = 0; i < data.size()-1; i++)
+      for (size_t i = 0; i < data.size() - 1; i++)
       {
         result += data[i];
       }
@@ -160,6 +160,8 @@ namespace esphome
         // handle reading timeouts
         if (now - this->last_received_time_ > this->receive_wait_time_)
         {
+          if (this->debug_ == true)
+            ESP_LOGV(TAG, "Last receive time exceeded. Clearing buffer...");
           this->rx_buffer_.clear();
           this->state_ = 0;
           break;
