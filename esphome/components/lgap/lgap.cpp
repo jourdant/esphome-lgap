@@ -152,10 +152,11 @@ namespace esphome
         ESP_LOGV(TAG, "Available: %d, State: %d", this->available(), this->state_);
 
       // 3. read the response (only read when expecting a response)
-      while (this->available() && (this->state_ == 1 || this->state_ == 2))
+      while (this->available())
       {
-        if (this->debug_ == true)
-          ESP_LOGV(TAG, "Trying to read from UART...");
+        // read byte and process
+        uint8_t c;
+        read_byte(&c);
 
         // handle reading timeouts
         if (now - this->last_received_time_ > this->receive_wait_time_)
@@ -163,16 +164,11 @@ namespace esphome
           if (this->debug_ == true)
             ESP_LOGV(TAG, "Last receive time exceeded. Clearing buffer...");
           this->rx_buffer_.clear();
-          while (this->available()) {
-            read_byte(nullptr);
-          }
           this->state_ = 0;
           break;
         }
 
-        // read byte and process
-        uint8_t c;
-        read_byte(&c);
+
         this->last_received_time_ = now;
         if (this->debug_ == true)
           ESP_LOGV(TAG, "LGAP received Byte  %d (0X%x)", c, c);
