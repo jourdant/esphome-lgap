@@ -50,13 +50,13 @@ namespace esphome
         if ((now - this->last_debug_time_) < this->debug_wait_time_)
           return;
         this->last_debug_time_ = now;
-        ESP_LOGV(TAG, "Running in debug mode...");
+        // ESP_LOGV(TAG, "Running in debug mode...");
       }
 
       // do nothing if there are no devices registered
       if (this->devices_.size() == 0)
       {
-        ESP_LOGV(TAG, "No devices to process...");
+        // ESP_LOGV(TAG, "No devices to process...");
         return;
       }
 
