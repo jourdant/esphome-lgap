@@ -112,7 +112,7 @@ namespace esphome
         }
 
         // 2. read only request for next zone status
-        if (state == 0 && (now - this->last_zone_check_time_) > zone_check_wait_time_)
+        if (this->state == 0 && (now - this->last_zone_check_time_) > zone_check_wait_time_)
         {
           this->last_zone_check_time_ = millis();
           if (this->debug_ == true)

@@ -357,7 +357,7 @@ namespace esphome
 
       // current temp
       //TODO: implement precision setting for reported temperature
-      int current_temperature = std::round((70 - message[8] * 100.0 / 256.0), 0) / 100.0;
+      int current_temperature = std::roundf((70 - message[8] * 100.0 / 256.0)) / 100.0;
       if (current_temperature != this->current_temperature_)
       {
         this->current_temperature_ = current_temperature;
