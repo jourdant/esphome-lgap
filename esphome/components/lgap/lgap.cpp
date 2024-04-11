@@ -91,11 +91,15 @@ namespace esphome
             if (this->flow_control_pin_ != nullptr)
               this->flow_control_pin_->digital_write(true);
 
-            // write request to uart - don't allow writes of more than 8 bytes
+            // don't allow writes of more than 8 bytes
             int bytes_to_write = this->tx_buffer_.size() >= 8 ? 8 : this->tx_buffer_.size();
+            ESP_LOGV(TAG, "Writing %d bytes", bytes_to_write);
             this->write_array(this->tx_buffer_.data(), bytes_to_write);
+
+            // write request to uart
             this->flush();
             this->tx_buffer_.clear();
+            ESP_LOGV(TAG, "flushed write buffer.");
 
             if (this->flow_control_pin_ != nullptr)
               this->flow_control_pin_->digital_write(false);
@@ -184,7 +188,7 @@ namespace esphome
         {
           ESP_LOGV(TAG, "State: 2");
 
-          //add byte to rx buffer
+          // add byte to rx buffer
           this->rx_buffer_.push_back(c);
 
           // valid climate responses are known to be 16 bytes long with the first byte being 0x10 (16), response length of 16 bytes and the last byte being the checksum
