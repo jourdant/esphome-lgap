@@ -26,10 +26,13 @@ namespace esphome
 
       // restore set points
       auto restore = this->restore_state_();
-      if (restore.has_value()) {
+      if (restore.has_value())
+      {
         ESP_LOGCONFIG(TAG, "Restoring original state...");
         restore->apply(this);
-      } else {
+      }
+      else
+      {
         ESP_LOGCONFIG(TAG, "Creating new state...");
         // restore from defaults
         this->mode = climate::CLIMATE_MODE_OFF;
@@ -42,11 +45,12 @@ namespace esphome
       }
 
       // Never send nan to HA
-      if (std::isnan(this->target_temperature)) {
+      if (std::isnan(this->target_temperature))
+      {
         this->target_temperature = 24;
       }
 
-      //todo: initialise the current temp too
+      // todo: initialise the current temp too
     }
 
     esphome::climate::ClimateTraits LGAPHVACClimate::traits()
@@ -89,53 +93,52 @@ namespace esphome
 
     void LGAPHVACClimate::control(const esphome::climate::ClimateCall &call)
     {
-      ESP_LOGV(TAG, "Control called");
+      ESP_LOGV(TAG, "esphome::climate::ClimateCall");
 
       // mode
       if (call.get_mode().has_value())
       {
         ESP_LOGV(TAG, "Mode change requested");
-
-        // User requested mode change
         climate::ClimateMode mode = *call.get_mode();
 
-        if (mode == climate::CLIMATE_MODE_OFF && this->mode != mode)
+        // mode - LGAP has a separate state for power and for mode. HA combines them into a single entity
+        // anything that is not Off, needs to also set the power mode to On
+        if (this->mode != mode)
         {
-          this->power_state_ = 0;
-          this->write_update_pending = true;
-        }
-        else if (mode == climate::CLIMATE_MODE_HEAT && this->mode != mode)
-        {
-          this->power_state_ = 1;
-          this->mode_ = 4;
-          this->write_update_pending = true;
-        }
-        else if (mode == climate::CLIMATE_MODE_DRY && this->mode != mode)
-        {
-          this->power_state_ = 1;
-          this->mode_ = 1;
-          this->write_update_pending = true;
-        }
-        else if (mode == climate::CLIMATE_MODE_COOL && this->mode != mode)
-        {
-          this->power_state_ = 1;
-          this->mode_ = 0;
-          this->write_update_pending = true;
-        }
-        else if (mode == climate::CLIMATE_MODE_FAN_ONLY && this->mode != mode)
-        {
-          this->power_state_ = 1;
-          this->mode_ = 2;
-          this->write_update_pending = true;
-        }
-        else if (mode == climate::CLIMATE_MODE_HEAT_COOL && this->mode != mode)
-        {
-          this->power_state_ = 1;
-          this->mode_ = 3;
-          this->write_update_pending = true;
+
+          if (mode == climate::CLIMATE_MODE_OFF)
+          {
+            this->power_state_ = 0;
+          }
+          else if (mode == climate::CLIMATE_MODE_HEAT)
+          {
+            this->power_state_ = 1;
+            this->mode_ = 4;
+          }
+          else if (mode == climate::CLIMATE_MODE_DRY)
+          {
+            this->power_state_ = 1;
+            this->mode_ = 1;
+          }
+          else if (mode == climate::CLIMATE_MODE_COOL)
+          {
+            this->power_state_ = 1;
+            this->mode_ = 0;
+          }
+          else if (mode == climate::CLIMATE_MODE_FAN_ONLY)
+          {
+            this->power_state_ = 1;
+            this->mode_ = 2;
+          }
+          else if (mode == climate::CLIMATE_MODE_HEAT_COOL)
+          {
+            this->power_state_ = 1;
+            this->mode_ = 3;
+          }
         }
 
         // Publish updated state
+        this->write_update_pending = true;
         this->mode = mode;
         this->publish_state();
       }
@@ -144,82 +147,82 @@ namespace esphome
       if (call.get_fan_mode().has_value())
       {
         ESP_LOGV(TAG, "Fan speed change requested");
-
-        // User requested fan mode change
         climate::ClimateFanMode fan_mode = *call.get_fan_mode();
 
-        if (fan_mode == climate::CLIMATE_FAN_AUTO && this->fan_mode != fan_mode)
+        if (this->fan_mode != fan_mode)
         {
-          // auto fan is actually not supported right now
-          this->fan_speed_ = 0;
-          this->write_update_pending = true;
-        }
-        else if (fan_mode == climate::CLIMATE_FAN_LOW && this->fan_mode != fan_mode)
-        {
-          this->fan_speed_ = 0;
-          this->write_update_pending = true;
-        }
-        else if (fan_mode == climate::CLIMATE_FAN_MEDIUM && this->fan_mode != fan_mode)
-        {
-          this->fan_speed_ = 1;
-          this->write_update_pending = true;
-        }
-        else if (fan_mode == climate::CLIMATE_FAN_HIGH && this->fan_mode != fan_mode)
-        {
-          this->fan_speed_ = 2;
-          this->write_update_pending = true;
-        }
+          if (fan_mode == climate::CLIMATE_FAN_AUTO)
+          {
+            // auto fan is actually not supported right now, so we set it to Low
+            this->fan_speed_ = 0;
+          }
+          else if (fan_mode == climate::CLIMATE_FAN_LOW)
+          {
+            this->fan_speed_ = 0;
+          }
+          else if (fan_mode == climate::CLIMATE_FAN_MEDIUM)
+          {
+            this->fan_speed_ = 1;
+          }
+          else if (fan_mode == climate::CLIMATE_FAN_HIGH)
+          {
+            this->fan_speed_ = 2;
+          }
 
-        this->fan_mode = fan_mode;
-        this->publish_state();
+          // publish state
+          this->write_update_pending = true;
+          this->fan_mode = fan_mode;
+          this->publish_state();
+        }
       }
 
       // swing
       if (call.get_swing_mode().has_value())
       {
         ESP_LOGV(TAG, "Swing mode change requested");
-
-        // User requested fan mode change
         climate::ClimateSwingMode swing_mode = *call.get_swing_mode();
-        // Send fan mode to hardware
-        if (swing_mode == climate::CLIMATE_SWING_OFF && this->swing_mode != swing_mode)
-        {
-          this->swing_ = 0;
-          this->write_update_pending = true;
-        }
-        else if (swing_mode == climate::CLIMATE_SWING_VERTICAL && this->swing_mode != swing_mode)
-        {
-          this->swing_ = 1;
-          this->write_update_pending = true;
-        }
 
-        this->swing_mode = swing_mode;
-        this->publish_state();
+        if (this->swing_mode != swing_mode)
+        {
+          if (swing_mode == climate::CLIMATE_SWING_OFF)
+          {
+            this->swing_ = 0;
+          }
+          else if (swing_mode == climate::CLIMATE_SWING_VERTICAL)
+          {
+            this->swing_ = 1;
+          }
+
+          // publish state
+          this->write_update_pending = true;
+          this->swing_mode = swing_mode;
+          this->publish_state();
+        }
       }
 
-      // temperature
+      // target temperature
       if (call.get_target_temperature().has_value())
       {
+        // TODO: enable precision decimals as a yaml setting
         ESP_LOGV(TAG, "Temperature change requested");
-
-        // User requested target temperature change
         float temp = *call.get_target_temperature();
         if (temp != this->target_temperature_)
         {
           this->target_temperature_ = temp;
           this->target_temperature = temp;
-          this->write_update_pending = true;
         }
+
+        this->write_update_pending = true;
         this->publish_state();
       }
     }
 
     void LGAPHVACClimate::handle_generate_lgap_request(std::vector<uint8_t> &message)
     {
-      //only create a write request if there is a pending message
+      // only create a write request if there is a pending message
       int write_state = this->write_update_pending ? 2 : 0;
 
-      //build payload in message buffer
+      // build payload in message buffer
       message.push_back(128);
       message.push_back(111);
       message.push_back(162);
@@ -233,7 +236,7 @@ namespace esphome
       message[7] = this->parent_->calculate_checksum(message);
     }
 
-    //todo: add handling for when mode change is requested but mode is already on with another zone, ie can't choose heat when cool is already on
+    // todo: add handling for when mode change is requested but mode is already on with another zone, ie can't choose heat when cool is already on
     void LGAPHVACClimate::handle_on_message_received(std::vector<uint8_t> &message)
     {
       ESP_LOGV(TAG, "LGAP message received");
@@ -250,84 +253,121 @@ namespace esphome
       uint8_t power_state = (message[1] & 1);
       uint8_t mode = (message[6] & 7);
 
-      //power state and mode
-      //home assistant climate treats them as a single entity
-      //this logic combines them from lgap into a single entity
-      if (power_state != this->power_state_ || mode != this->mode_) {
-        this->power_state_ = power_state;
-        this->mode_ = mode;
-        publish_update = true;
-
-        if (this->mode_ == 0) {
+      // power state and mode
+      // home assistant climate treats them as a single entity
+      // this logic combines them from lgap into a single entity
+      if (power_state != this->power_state_ || mode != this->mode_)
+      {
+        //handle mode
+        if (mode == 0)
+        {
           this->mode = climate::CLIMATE_MODE_COOL;
-        } else if (this->mode_ == 1) {
+        }
+        else if (mode == 1)
+        {
           this->mode = climate::CLIMATE_MODE_DRY;
-        } else if (this->mode_ == 2) {
+        }
+        else if (mode == 2)
+        {
           this->mode = climate::CLIMATE_MODE_FAN_ONLY;
-        } else if (this->mode_ == 3) {
+        }
+        else if (mode == 3)
+        {
+          // heat/cool is essentially auto
           this->mode = climate::CLIMATE_MODE_HEAT_COOL;
-        } else if (this->mode_ == 4) {
+        }
+        else if (mode == 4)
+        {
           this->mode = climate::CLIMATE_MODE_HEAT;
         }
-        else {
-          ESP_LOGE(TAG, "Invalid mode received: %d", this->mode_);
+        else
+        {
+          ESP_LOGE(TAG, "Invalid mode received: %d", mode);
+          this->mode = climate::CLIMATE_MODE_OFF;
         }
-      } else {
-        this->mode = climate::CLIMATE_MODE_OFF;
+
+        //handle power state
+        if (power_state == 0)
+        {
+          this->mode = climate::CLIMATE_MODE_OFF;
+        }
+
+        // update state
+        publish_update = true;
+        this->mode_ = mode;
+        this->power_state_ = power_state;
       }
 
-      //swing options
+      // swing options
       uint8_t swing = (message[6] >> 3) & 1;
-      if (swing != this->swing_) {
-        this->swing_ = swing;
-        publish_update = true;
-
-        if (this->swing_ == 0) {
+      if (swing != this->swing_)
+      {
+        if (swing == 0)
+        {
           this->swing_mode = climate::CLIMATE_SWING_OFF;
-        } else if (this->swing_ == 1) {
+        }
+        else if (swing == 1)
+        {
           this->swing_mode = climate::CLIMATE_SWING_VERTICAL;
         }
-        else {
-          ESP_LOGE(TAG, "Invalid swing received: %d", this->swing_);
+        else
+        {
+          ESP_LOGE(TAG, "Invalid swing received: %d", swing);
         }
+
+        //update state
+        this->swing_ = swing;
+        publish_update = true;
       }
 
-      //fan speed
+      // fan speed
       uint8_t fan_speed = ((message[6] >> 4) & 7);
-      if (fan_speed != this->fan_speed_) {
-        this->fan_speed_ = fan_speed;
-        publish_update = true;
-
-        if (this->fan_speed_ == 0) {
+      if (fan_speed != this->fan_speed_)
+      {
+        if (fan_speed == 0)
+        {
           this->fan_mode = climate::CLIMATE_FAN_LOW;
-        } else if (this->fan_speed_ == 1) {
+        }
+        else if (fan_speed == 1)
+        {
           this->fan_mode = climate::CLIMATE_FAN_MEDIUM;
-        } else if (this->fan_speed_ == 2) {
+        }
+        else if (fan_speed == 2)
+        {
           this->fan_mode = climate::CLIMATE_FAN_HIGH;
         }
-        else {
-          ESP_LOGE(TAG, "Invalid fan speed received: %d", this->fan_speed_);
+        else
+        {
+          ESP_LOGE(TAG, "Invalid fan speed received: %d", fan_speed);
         }
+
+        //update state
+        this->fan_speed_ = fan_speed;
+        publish_update = true;
       }
 
-      //target temp
-      float target_temperature = (message[7] & 0xf) + 15;
-      if (target_temperature != this->target_temperature_) {
+      // target temp
+      int target_temperature = (message[7] & 0xf) + 15;
+      if (target_temperature != this->target_temperature_)
+      {
         this->target_temperature_ = target_temperature;
         this->target_temperature = target_temperature;
         publish_update = true;
       }
 
-      //current temp
-      float current_temperature = std::round((70 - message[8] * 100.0 / 256.0) * 100) / 100.0;
-      if (current_temperature != this->current_temperature_) {
+      // current temp
+      //TODO: implement precision setting for reported temperature
+      int current_temperature = std::round((70 - message[8] * 100.0 / 256.0), 0) / 100.0;
+      if (current_temperature != this->current_temperature_)
+      {
         this->current_temperature_ = current_temperature;
         this->current_temperature = current_temperature;
         publish_update = true;
       }
 
-      //send update to home assistant with all the changed variables
-      if (publish_update == true) {
+      // send update to home assistant with all the changed variables
+      if (publish_update == true)
+      {
         this->publish_state();
       }
     }
