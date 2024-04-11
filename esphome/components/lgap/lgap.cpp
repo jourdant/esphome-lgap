@@ -77,23 +77,23 @@ namespace esphome
         // 1. check if anything needs to be sent right now
         for (auto &device : this->devices_)
         {
-          if (this->debug_ == true)
-            ESP_LOGV(TAG, "Checking device %d for pending writes...", device->zone_number);
+          ESP_LOGV(TAG, "Checking device %d for pending writes...", device->zone_number);
 
           if (device->zone_number > -1 && device->write_update_pending == true)
           {
-            if (this->debug_ == true)
-              ESP_LOGV(TAG, "write_update_pending==true for zone %d", device->zone_number);
-
+            ESP_LOGV(TAG, "write_update_pending==true for zone %d", device->zone_number);
             this->tx_buffer_.clear();
-
             device->write_update_pending = false;
+
+            // generate payload to send
             device->generate_lgap_request(*&this->tx_buffer_);
 
             if (this->flow_control_pin_ != nullptr)
               this->flow_control_pin_->digital_write(true);
 
-            this->write_array(this->tx_buffer_.data(), this->tx_buffer_.size());
+            // write request to uart - don't allow writes of more than 8 bytes
+            int bytes_to_write = this->tx_buffer_.size() >= 8 ? 8 : this->tx_buffer_.size();
+            this->write_array(this->tx_buffer_.data(), bytes_to_write);
             this->flush();
             this->tx_buffer_.clear();
 
@@ -101,19 +101,18 @@ namespace esphome
               this->flow_control_pin_->digital_write(false);
 
             this->last_sent_time_ = millis();
-            this->last_received_time_ = this->last_sent_time_;
+            // this->last_received_time_ = this->last_sent_time_;
             this->state_ = 1;
             continue;
           }
           else
           {
-            if (this->debug_ == true)
-              ESP_LOGV(TAG, "write_update_pending==false for zone %d", device->zone_number);
+            ESP_LOGV(TAG, "write_update_pending==false for zone %d", device->zone_number);
           }
         }
 
-        // 2. readonly request for next zone status
-        if ((now - this->last_zone_check_time_) > zone_check_wait_time_)
+        // 2. read only request for next zone status
+        if (state == 0 && (now - this->last_zone_check_time_) > zone_check_wait_time_)
         {
           this->last_zone_check_time_ = millis();
           if (this->debug_ == true)
@@ -154,30 +153,25 @@ namespace esphome
       // 3. read the response (only read when expecting a response)
       while (this->available())
       {
-        // read byte and process
-        uint8_t c;
-        read_byte(&c);
-
         // handle reading timeouts
-        if (now - this->last_received_time_ > this->receive_wait_time_)
+        if ((now - this->last_received_time_) > this->receive_wait_time_)
         {
-          if (this->debug_ == true)
-            ESP_LOGV(TAG, "Last receive time exceeded. Clearing buffer...");
+          ESP_LOGV(TAG, "Last receive time exceeded. Clearing buffer...");
           this->rx_buffer_.clear();
           this->state_ = 0;
           break;
         }
 
-
+        // read byte and process
+        uint8_t c;
+        read_byte(&c);
         this->last_received_time_ = now;
-        if (this->debug_ == true)
-          ESP_LOGV(TAG, "LGAP received Byte  %d (0X%x)", c, c);
+        ESP_LOGV(TAG, "LGAP received Byte  %d (0X%x)", c, c);
 
         // read the start of a new response
         if (c == 0x10 && this->state_ == 1 && this->rx_buffer_.size() == 0)
         {
-          if (this->debug_ == true)
-            ESP_LOGV(TAG, "LGAP received start of new response");
+          ESP_LOGV(TAG, "LGAP received start of new response");
 
           this->state_ = 2;
           this->rx_buffer_.clear();
@@ -188,9 +182,9 @@ namespace esphome
         // process a valid byte
         if (this->state_ == 2)
         {
-          if (this->debug_ == true)
-            ESP_LOGV(TAG, "State: 2");
+          ESP_LOGV(TAG, "State: 2");
 
+          //add byte to rx buffer
           this->rx_buffer_.push_back(c);
 
           // valid climate responses are known to be 16 bytes long with the first byte being 0x10 (16), response length of 16 bytes and the last byte being the checksum
