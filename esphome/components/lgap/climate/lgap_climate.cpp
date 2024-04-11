@@ -220,15 +220,15 @@ namespace esphome
       int write_state = this->write_update_pending ? 2 : 0;
 
       //build payload in message buffer
-      message.push_back(0);
-      message.push_back(0);
-      message.push_back(0);
+      message.push_back(128);
+      message.push_back(111);
+      message.push_back(162);
       message.push_back(this->zone_number);
       message.push_back(write_state | this->power_state_);
       message.push_back(this->mode_ | (this->swing_ << 3) | (this->fan_speed_ << 4));
-      message.push_back((int)this->target_temperature_ - 15);
+      message.push_back((uint8_t)(this->target_temperature_ - 15));
 
-      // blank val for checksum
+      // blank val for checksum then replace with calculation
       message.push_back(0);
       message[7] = this->parent_->calculate_checksum(message);
     }
