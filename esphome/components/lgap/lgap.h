@@ -38,7 +38,7 @@ namespace esphome
         void set_zone_check_wait_time(uint16_t time_in_ms) { this->zone_check_wait_time_ = time_in_ms; }
         void register_device(LGAPDevice *device)
         {
-          ESP_LOGV(TAG, "Registering device");
+          ESP_LOGD(TAG, "Registering device");
           this->devices_.push_back(device);
         }
 

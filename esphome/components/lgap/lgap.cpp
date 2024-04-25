@@ -75,17 +75,17 @@ namespace esphome
         else
           this->last_loop_time_ = now;
 
-        ESP_LOGV(TAG, "REQUEST_NEXT_DEVICE_STATUS");
+        ESP_LOGD(TAG, "REQUEST_NEXT_DEVICE_STATUS");
 
         // cycle through zones
         this->last_zone_checked_index_ = (this->last_zone_checked_index_ + 1) > this->devices_.size() - 1 ? 0 : this->last_zone_checked_index_ + 1;
         if (this->debug_ == true)
-          ESP_LOGV(TAG, "this->devices_[%d]->zone_number = %d", this->last_zone_checked_index_, this->devices_[this->last_zone_checked_index_]->zone_number);
+          ESP_LOGD(TAG, "this->devices_[%d]->zone_number = %d", this->last_zone_checked_index_, this->devices_[this->last_zone_checked_index_]->zone_number);
 
         // retrieve lgap message from device if it has a valid zone number
         if (this->devices_[this->last_zone_checked_index_]->zone_number > -1)
         {
-          ESP_LOGV(TAG, "LGAP requesting update from zone %d", this->devices_[this->last_zone_checked_index_]->zone_number);
+          ESP_LOGD(TAG, "LGAP requesting update from zone %d", this->devices_[this->last_zone_checked_index_]->zone_number);
 
           this->tx_buffer_.clear();
           this->devices_[this->last_zone_checked_index_]->generate_lgap_request(this->tx_buffer_, this->last_request_id_);
@@ -120,7 +120,7 @@ namespace esphome
       // handle reading timeouts
       if ((this->receive_until_time_ - now) > this->receive_wait_time_)
       {
-        ESP_LOGV(TAG, "Last receive time exceeded. Clearing buffer...");
+        ESP_LOGD(TAG, "Last receive time exceeded. Clearing buffer...");
         clear_rx_buffer();
 
         this->state_ = State::REQUEST_NEXT_DEVICE_STATUS;
@@ -133,17 +133,17 @@ namespace esphome
         uint8_t c;
         read_byte(&c);
         this->last_receive_time_ = now;
-        ESP_LOGV(TAG, "Received Byte  %d (0X%x)", c, c);
+        ESP_LOGD(TAG, "Received Byte  %d (0X%x)", c, c);
 
         // read the start of a new response
         if (this->state_ == State::PROCESS_DEVICE_STATUS_START)
         {
-          ESP_LOGV(TAG, "PROCESS_DEVICE_STATUS_START");
+          ESP_LOGD(TAG, "PROCESS_DEVICE_STATUS_START");
 
           // handle valid start of response
           if (c == 0x10 && this->rx_buffer_.size() == 0)
           {
-            ESP_LOGV(TAG, "Received start of new response");
+            ESP_LOGD(TAG, "Received start of new response");
 
             this->rx_buffer_.clear();
             this->rx_buffer_.push_back(c);
@@ -153,7 +153,7 @@ namespace esphome
           // handle invalid start of response
           else
           {
-            ESP_LOGV(TAG, "Received invalid start of response. Clearing buffer...");
+            ESP_LOGD(TAG, "Received invalid start of response. Clearing buffer...");
             clear_rx_buffer();
             this->state_ = State::REQUEST_NEXT_DEVICE_STATUS;
           }
@@ -163,7 +163,7 @@ namespace esphome
 
         if (this->state_ == State::PROCESS_DEVICE_STATUS_CONTINUE)
         {
-          ESP_LOGV(TAG, "PROCESS_DEVICE_STATUS_CONTINUE");
+          ESP_LOGD(TAG, "PROCESS_DEVICE_STATUS_CONTINUE");
 
           // add byte to rx buffer
           this->rx_buffer_.push_back(c);
@@ -198,7 +198,7 @@ namespace esphome
             }
             else
             {
-              ESP_LOGV(TAG, "Response not for last request. Ignoring...");
+              ESP_LOGD(TAG, "Response not for last request. Ignoring...");
             }
 
             // reset state

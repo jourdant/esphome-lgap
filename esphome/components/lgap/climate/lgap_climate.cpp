@@ -94,12 +94,12 @@ namespace esphome
 
     void LGAPHVACClimate::control(const esphome::climate::ClimateCall &call)
     {
-      ESP_LOGV(TAG, "esphome::climate::ClimateCall");
+      ESP_LOGD(TAG, "esphome::climate::ClimateCall");
 
       // mode
       if (call.get_mode().has_value())
       {
-        ESP_LOGV(TAG, "Mode change requested");
+        ESP_LOGD(TAG, "Mode change requested");
         climate::ClimateMode mode = *call.get_mode();
 
         // mode - LGAP has a separate state for power and for mode. HA combines them into a single entity
@@ -147,7 +147,7 @@ namespace esphome
       // fan speed
       if (call.get_fan_mode().has_value())
       {
-        ESP_LOGV(TAG, "Fan speed change requested");
+        ESP_LOGD(TAG, "Fan speed change requested");
         climate::ClimateFanMode fan_mode = *call.get_fan_mode();
 
         if (this->fan_mode != fan_mode)
@@ -180,7 +180,7 @@ namespace esphome
       // swing
       if (call.get_swing_mode().has_value())
       {
-        ESP_LOGV(TAG, "Swing mode change requested");
+        ESP_LOGD(TAG, "Swing mode change requested");
         climate::ClimateSwingMode swing_mode = *call.get_swing_mode();
 
         if (this->swing_mode != swing_mode)
@@ -205,7 +205,7 @@ namespace esphome
       if (call.get_target_temperature().has_value())
       {
         // TODO: enable precision decimals as a yaml setting
-        ESP_LOGV(TAG, "Temperature change requested");
+        ESP_LOGD(TAG, "Temperature change requested");
         float temp = *call.get_target_temperature();
         if (temp != this->target_temperature_)
         {
@@ -240,7 +240,7 @@ namespace esphome
     // todo: add handling for when mode change is requested but mode is already on with another zone, ie can't choose heat when cool is already on
     void LGAPHVACClimate::handle_on_message_received(std::vector<uint8_t> &message)
     {
-      ESP_LOGV(TAG, "LGAP message received");
+      ESP_LOGD(TAG, "LGAP message received");
 
       // handle bad class config
       if (this->zone_number < 0)
