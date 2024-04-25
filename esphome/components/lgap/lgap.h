@@ -24,7 +24,7 @@ namespace esphome
         void dump_config() override;
         void loop() override;
         
-        void set_debug_wait_time(uint16_t time_in_ms) { this->debug_wait_time_= time_in_ms; }
+        void set_loop_wait_time(uint16_t time_in_ms) { this->loop_wait_time_= time_in_ms; }
         void set_debug(bool debug) { this->debug_ = debug; }
 
         void set_flow_control_pin(GPIOPin *flow_control_pin) { this->flow_control_pin_ = flow_control_pin; }

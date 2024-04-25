@@ -61,4 +61,4 @@ async def to_code(config):
 
     #debug flags
     cg.add(var.set_debug(config[CONF_DEBUG]))
-    cg.add(var.set_debug_wait_time(config[CONF_LOOP_WAIT_TIME]))
+    cg.add(var.set_loop_wait_time(config[CONF_LOOP_WAIT_TIME]))
