@@ -19,7 +19,7 @@ namespace esphome
         void set_zone_number(int zone_number) { this->zone_number = zone_number; }
 
         void on_message_received(std::vector<uint8_t> &message);
-        void generate_lgap_request(std::vector<uint8_t> &message);
+        void generate_lgap_request(std::vector<uint8_t> &message, uint8_t &request_id);
         
         // uint32_t last_uart_update_time_{0};
         // uint32_t last_ha_update_time_{0};
