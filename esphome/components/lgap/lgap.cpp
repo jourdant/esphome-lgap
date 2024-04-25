@@ -199,6 +199,9 @@ namespace esphome
             else
             {
               ESP_LOGD(TAG, "Response not for last request. Ignoring...");
+              ESP_LOGD(TAG, "rx_buffer[2] (%d) == last_request_id (%d)", this->rx_buffer_[2], this->last_request_id_);
+              ESP_LOGD(TAG, "rx_buffer[4] (%d) == last_request_zone_ (%d)", this->rx_buffer_[4], this->last_request_zone_);
+
             }
 
             // reset state
