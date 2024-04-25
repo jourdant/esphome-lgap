@@ -52,7 +52,7 @@ namespace esphome
 
     void LGAP::clear_rx_buffer()
     {
-      ESP_LOGD(TAG, "Clearing rx buffer...");
+      ESP_LOGV(TAG, "Clearing rx buffer...");
 
       // clear internal rx buffer
       this->rx_buffer_.clear();
@@ -81,13 +81,12 @@ namespace esphome
 
         // cycle through zones
         this->last_zone_checked_index_ = (this->last_zone_checked_index_ + 1) > this->devices_.size() - 1 ? 0 : this->last_zone_checked_index_ + 1;
-        if (this->debug_ == true)
-          ESP_LOGD(TAG, "this->devices_[%d]->zone_number = %d", this->last_zone_checked_index_, this->devices_[this->last_zone_checked_index_]->zone_number);
+        ESP_LOGV(TAG, "devices_[%d]->zone_number = %d", this->last_zone_checked_index_, this->devices_[this->last_zone_checked_index_]->zone_number);
 
         // retrieve lgap message from device if it has a valid zone number
         if (this->devices_[this->last_zone_checked_index_]->zone_number > -1)
         {
-          ESP_LOGD(TAG, "Requesting update from zone %d", this->devices_[this->last_zone_checked_index_]->zone_number);
+          ESP_LOGV(TAG, "Requesting update from zone %d", this->devices_[this->last_zone_checked_index_]->zone_number);
 
           this->tx_buffer_.clear();
           this->devices_[this->last_zone_checked_index_]->generate_lgap_request(this->tx_buffer_, this->last_request_id_);
@@ -104,6 +103,13 @@ namespace esphome
           // signal flow control write mode disabled
           if (this->flow_control_pin_ != nullptr)
             this->flow_control_pin_->digital_write(false);
+
+          // update device state
+          if (this->devices_[this->last_zone_checked_index_]->write_update_pending == true)
+          {
+            ESP_LOGV(TAG, "Disabling write flag for zone %d", this->devices_[this->last_zone_checked_index_]->zone_number);
+            this->devices_[this->last_zone_checked_index_]->write_update_pending = false;
+          }
 
           // update state for last request
           this->last_request_zone_ = this->devices_[this->last_zone_checked_index_]->zone_number;
@@ -124,7 +130,7 @@ namespace esphome
       // handle reading timeouts
       if ((this->receive_until_time_ - now) > this->receive_wait_time_)
       {
-        ESP_LOGD(TAG, "Last receive time exceeded. Clearing buffer...");
+        ESP_LOGE(TAG, "Last receive time exceeded. Clearing buffer...");
         clear_rx_buffer();
 
         this->state_ = State::REQUEST_NEXT_DEVICE_STATUS;
@@ -147,7 +153,7 @@ namespace esphome
           // handle valid start of response
           if (c == 0x10 && this->rx_buffer_.size() == 0)
           {
-            ESP_LOGD(TAG, "Received start of new response");
+            ESP_LOGV(TAG, "Received start of new response");
 
             this->rx_buffer_.clear();
             this->rx_buffer_.push_back(c);
@@ -157,7 +163,7 @@ namespace esphome
           // handle invalid start of response
           else
           {
-            ESP_LOGD(TAG, "Received invalid start of response. Clearing buffer...");
+            ESP_LOGE(TAG, "Received invalid start of response. Clearing buffer...");
             clear_rx_buffer();
             this->state_ = State::REQUEST_NEXT_DEVICE_STATUS;
           }
@@ -204,9 +210,9 @@ namespace esphome
             }
             else
             {
-              ESP_LOGD(TAG, "Response not for last request. Ignoring...");
-              ESP_LOGD(TAG, "rx_buffer[2] (%d) == last_request_id-1 (%d)", this->rx_buffer_[2], (this->last_request_id_ - 1));
-              ESP_LOGD(TAG, "rx_buffer[4] (%d) == last_request_zone_ (%d)", this->rx_buffer_[4], this->last_request_zone_);
+              ESP_LOGD(TAG, "Response does not match last request ID. Ignoring...");
+              ESP_LOGV(TAG, "rx_buffer[2] (%d) == last_request_id_   (%d)", this->rx_buffer_[2], (this->last_request_id_ - 1));
+              ESP_LOGV(TAG, "rx_buffer[4] (%d) == last_request_zone_ (%d)", this->rx_buffer_[4], this->last_request_zone_);
             }
 
             // reset state
