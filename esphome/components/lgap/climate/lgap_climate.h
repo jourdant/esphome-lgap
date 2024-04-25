@@ -34,7 +34,7 @@ namespace esphome
         // optional<float> current_temperature_;
 
         void handle_on_message_received(std::vector<uint8_t> &message) override;
-        void handle_generate_lgap_request(std::vector<uint8_t> &message) override;
+        void handle_generate_lgap_request(std::vector<uint8_t> &message, uint8_t &request_id) override;
       };
 
   } // namespace lgap

@@ -88,7 +88,7 @@ namespace esphome
           ESP_LOGV(TAG, "LGAP requesting update from zone %d", this->devices_[this->last_zone_checked_index_]->zone_number);
 
           this->tx_buffer_.clear();
-          this->devices_[this->last_zone_checked_index_]->generate_lgap_request(*&this->tx_buffer_, this->last_request_id_);
+          this->devices_[this->last_zone_checked_index_]->generate_lgap_request(&this->tx_buffer_, &this->last_request_id_);
 
           // signal flow control write mode enabled
           if (this->flow_control_pin_ != nullptr)

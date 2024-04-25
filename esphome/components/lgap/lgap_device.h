@@ -31,7 +31,7 @@ namespace esphome
         int zone_number{-1};
 
         virtual void handle_on_message_received(std::vector<uint8_t> &message) = 0;
-        virtual void handle_generate_lgap_request(std::vector<uint8_t> &message) = 0;
+        virtual void handle_generate_lgap_request(std::vector<uint8_t> &message, uint8_t &request_id) = 0;
     };
 
   } // namespace lgap

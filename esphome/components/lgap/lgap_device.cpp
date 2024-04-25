@@ -12,9 +12,9 @@ namespace esphome
       this->handle_on_message_received(message);
     }
 
-    void LGAPDevice::generate_lgap_request(std::vector<uint8_t> &message, uint8_t request_id)
+    void LGAPDevice::generate_lgap_request(std::vector<uint8_t> &message, uint8_t &request_id)
     {
-      this->handle_generate_lgap_request(message);
+      this->handle_generate_lgap_request(message, request_id);
     }
 
 
