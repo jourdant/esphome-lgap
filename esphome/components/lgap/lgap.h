@@ -33,9 +33,7 @@ namespace esphome
         void set_debug(bool debug) { this->debug_ = debug; }
 
         void set_flow_control_pin(GPIOPin *flow_control_pin) { this->flow_control_pin_ = flow_control_pin; }
-        void set_send_wait_time(uint16_t time_in_ms) { this->send_wait_time_ = time_in_ms; }
         void set_receive_wait_time(uint16_t time_in_ms) { this->receive_wait_time_ = time_in_ms; }
-        void set_zone_check_wait_time(uint16_t time_in_ms) { this->zone_check_wait_time_ = time_in_ms; }
         void register_device(LGAPDevice *device)
         {
           ESP_LOGD(TAG, "Registering device");
@@ -51,10 +49,8 @@ namespace esphome
         bool debug_{true};
         int last_zone_checked_index_{-1};
 
-        uint16_t loop_wait_time_{250};
-        uint16_t zone_check_wait_time_{1000};
-        uint16_t send_wait_time_{250};
-        uint16_t receive_wait_time_{250};
+        uint16_t loop_wait_time_{500};
+        uint16_t receive_wait_time_{500};
 
         // used for keeping track of req/resp pairs
         uint8_t last_request_id_{162};
@@ -63,8 +59,6 @@ namespace esphome
         // timestamps
         uint32_t last_loop_time_{0};
         uint32_t last_zone_check_time_{0};
-        uint32_t last_send_time_{0};
-        uint32_t last_receive_time_{0};
         uint32_t receive_until_time_{0};
 
         std::vector<uint8_t> rx_buffer_;

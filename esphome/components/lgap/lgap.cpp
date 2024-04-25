@@ -27,9 +27,7 @@ namespace esphome
       }
 
       ESP_LOGCONFIG(TAG, "  Loop wait time: %dms", this->loop_wait_time_);
-      ESP_LOGCONFIG(TAG, "  Send wait Time: %dms", this->send_wait_time_);
       ESP_LOGCONFIG(TAG, "  Receive wait time: %dms", this->receive_wait_time_);
-      ESP_LOGCONFIG(TAG, "  Zone check wait time: %dms", this->zone_check_wait_time_);
       ESP_LOGCONFIG(TAG, "  Child devices: %d", this->devices_.size());
       if (this->debug_ == true)
       {
@@ -114,7 +112,6 @@ namespace esphome
           // update state for last request
           this->last_request_zone_ = this->devices_[this->last_zone_checked_index_]->zone_number;
           this->last_send_time_ = this->last_zone_check_time_;
-          this->last_receive_time_ = this->last_zone_check_time_;
           this->receive_until_time_ = millis() + this->receive_wait_time_;
 
           // update state machine
@@ -142,7 +139,6 @@ namespace esphome
         // read byte and process
         uint8_t c;
         read_byte(&c);
-        this->last_receive_time_ = now;
         ESP_LOGV(TAG, "Received Byte  %d (0X%x)", c, c);
 
         // read the start of a new response
@@ -181,8 +177,6 @@ namespace esphome
           // valid climate responses are known to be 16 bytes long with the first byte being 0x10 (16), response length of 16 bytes and the last byte being the checksum
           if (this->rx_buffer_.size() == 16)
           {
-            this->last_receive_time_ = now;
-
             // handle bad checksum
             if (calculate_checksum(this->rx_buffer_) != this->rx_buffer_[this->rx_buffer_.size() - 1])
             {
