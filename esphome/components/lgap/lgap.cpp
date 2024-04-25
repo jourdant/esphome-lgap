@@ -61,8 +61,6 @@ namespace esphome
 
     void LGAP::loop()
     {
-      const uint32_t now = millis();
-
       // do nothing if there are no LGAP devices registered
       if (this->devices_.size() == 0)
         return;
@@ -70,10 +68,10 @@ namespace esphome
       if (this->state_ == State::REQUEST_NEXT_DEVICE_STATUS)
       {
         // enable wait time between loops
-        if ((now - this->last_loop_time_) < this->loop_wait_time_)
+        if ((millis() - this->last_loop_time_) < this->loop_wait_time_)
           return;
         else
-          this->last_loop_time_ = now;
+          this->last_loop_time_ = millis();
 
         ESP_LOGV(TAG, "REQUEST_NEXT_DEVICE_STATUS");
 
@@ -111,7 +109,6 @@ namespace esphome
 
           // update state for last request
           this->last_request_zone_ = this->devices_[this->last_zone_checked_index_]->zone_number;
-          this->last_send_time_ = this->last_zone_check_time_;
           this->receive_until_time_ = millis() + this->receive_wait_time_;
 
           // update state machine
@@ -125,7 +122,7 @@ namespace esphome
       }
 
       // handle reading timeouts
-      if ((this->receive_until_time_ - now) > this->receive_wait_time_)
+      if ((this->receive_until_time_ - millis()) > this->receive_wait_time_)
       {
         ESP_LOGE(TAG, "Last receive time exceeded. Clearing buffer...");
         clear_rx_buffer();
@@ -174,7 +171,7 @@ namespace esphome
           // add byte to rx buffer
           this->rx_buffer_.push_back(c);
 
-          // valid climate responses are known to be 16 bytes long with the first byte being 0x10 (16), response length of 16 bytes and the last byte being the checksum
+          // valid climate responses are kmillis()n to be 16 bytes long with the first byte being 0x10 (16), response length of 16 bytes and the last byte being the checksum
           if (this->rx_buffer_.size() == 16)
           {
             // handle bad checksum
@@ -190,7 +187,7 @@ namespace esphome
 
             // TODO: add a flag to ignore out of order responses
             // check to see if the response is for the last request (request/response is in order)
-            if (this->rx_buffer_[4] == this->last_request_zone_ && (this->rx_buffer_[2] == (this->last_request_id_ - 1) || this->rx_buffer_[2] == (this->last_request_id_ )))
+            if (this->rx_buffer_[4] == this->last_request_zone_ && (this->rx_buffer_[2] == (this->last_request_id_ - 1) || this->rx_buffer_[2] == (this->last_request_id_)))
             {
               // notify valid device components
               for (auto &device : this->devices_)
