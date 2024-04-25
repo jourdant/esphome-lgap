@@ -22,8 +22,6 @@ namespace esphome
       ESP_LOGCONFIG(TAG, "  Temperature: %d", this->target_temperature);
     }
 
-
-
     void LGAPHVACClimate::setup()
     {
       ESP_LOGCONFIG(TAG, "setup() setting initial HVAC state...");
@@ -261,7 +259,7 @@ namespace esphome
       // this logic combines them from lgap into a single entity
       if (power_state != this->power_state_ || mode != this->mode_)
       {
-        //handle mode
+        // handle mode
         if (mode == 0)
         {
           this->mode = climate::CLIMATE_MODE_COOL;
@@ -289,7 +287,7 @@ namespace esphome
           this->mode = climate::CLIMATE_MODE_OFF;
         }
 
-        //handle power state
+        // handle power state
         if (power_state == 0)
         {
           this->mode = climate::CLIMATE_MODE_OFF;
@@ -318,7 +316,7 @@ namespace esphome
           ESP_LOGE(TAG, "Invalid swing received: %d", swing);
         }
 
-        //update state
+        // update state
         this->swing_ = swing;
         publish_update = true;
       }
@@ -344,7 +342,7 @@ namespace esphome
           ESP_LOGE(TAG, "Invalid fan speed received: %d", fan_speed);
         }
 
-        //update state
+        // update state
         this->fan_speed_ = fan_speed;
         publish_update = true;
       }
@@ -359,11 +357,12 @@ namespace esphome
       }
 
       // current temp
-      //TODO: implement precision setting for reported temperature
-      int current_temperature = ((70 - message[8] * 100.0 / 256.0)) / 100.0;
+      // TODO: implement precision setting for reported temperature
+      // int current_temperature = ((70 - message[8] * 100.0 / 256.0)) / 100.0;
+      int current_temperature = (message[8] & 0xf) + 15;
+      ESP_LOGD(TAG, "Current temperature: %d",  current_temperature);
       if (current_temperature != this->current_temperature_)
       {
-        ESP_LOGD(TAG, "Current temperature: %d", current_temperature);
         this->current_temperature_ = current_temperature;
         this->current_temperature = current_temperature;
         publish_update = true;
