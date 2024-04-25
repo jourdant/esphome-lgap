@@ -44,28 +44,17 @@ namespace esphome
     {
       const uint32_t now = millis();
 
-      // escape clause for in debug mode
+      // do nothing if there are no LGAP devices registered
+      if (this->devices_.size() == 0)
+        return;
+
+      // allows debug mode to add artificial waits between loops
       if (this->debug_ == true)
       {
         if ((now - this->last_debug_time_) < this->debug_wait_time_)
           return;
+
         this->last_debug_time_ = now;
-        // ESP_LOGV(TAG, "Running in debug mode...");
-      }
-
-      // do nothing if there are no devices registered
-      if (this->devices_.size() == 0)
-      {
-        // ESP_LOGV(TAG, "No devices to process...");
-        return;
-      }
-
-      // handle reading timeouts
-      if (this->state_ != 0 && now - this->last_received_time_ > this->receive_wait_time_)
-      {
-        ESP_LOGV(TAG, "Timed out latest read", this->last_zone_checked_index_, this->devices_[this->last_zone_checked_index_]->zone_number);
-        this->rx_buffer_.clear();
-        this->state_ = 0;
       }
 
       // state == 0 - handle potential writes before reads
@@ -104,8 +93,8 @@ namespace esphome
             if (this->flow_control_pin_ != nullptr)
               this->flow_control_pin_->digital_write(false);
 
-            this->last_sent_time_ = millis();
-            // this->last_received_time_ = this->last_sent_time_;
+            this->last_send_time_ = millis();
+            // this->last_receive_time_ = this->last_send_time_;
             this->state_ = 1;
             continue;
           }
@@ -138,14 +127,18 @@ namespace esphome
             if (this->flow_control_pin_ != nullptr)
               this->flow_control_pin_->digital_write(true);
 
+            // set correct request id and send over uart
+            this->tx_buffer_[2] = this->last_request_id;
             this->write_array(this->tx_buffer_.data(), this->tx_buffer_.size());
             this->flush();
 
             if (this->flow_control_pin_ != nullptr)
               this->flow_control_pin_->digital_write(false);
 
-            this->last_sent_time_ = this->last_zone_check_time_;
-            this->last_received_time_ = this->last_zone_check_time_;
+            // update state for last request
+            this->last_request_zone = this->devices_[this->last_zone_checked_index_]->zone_number;
+            this->last_send_time_ = this->last_zone_check_time_;
+            this->last_receive_time_ = this->last_zone_check_time_;
             this->state_ = 1;
           }
         }
@@ -158,7 +151,7 @@ namespace esphome
       while (this->available())
       {
         // handle reading timeouts
-        if ((now - this->last_received_time_) > this->receive_wait_time_)
+        if ((now - this->last_receive_time_) > this->receive_wait_time_)
         {
           ESP_LOGV(TAG, "Last receive time exceeded. Clearing buffer...");
           this->rx_buffer_.clear();
@@ -169,7 +162,7 @@ namespace esphome
         // read byte and process
         uint8_t c;
         read_byte(&c);
-        this->last_received_time_ = now;
+        this->last_receive_time_ = now;
         ESP_LOGV(TAG, "LGAP received Byte  %d (0X%x)", c, c);
 
         // read the start of a new response
@@ -194,7 +187,7 @@ namespace esphome
           // valid climate responses are known to be 16 bytes long with the first byte being 0x10 (16), response length of 16 bytes and the last byte being the checksum
           if (this->rx_buffer_.size() == 16)
           {
-            this->last_received_time_ = now;
+            this->last_receive_time_ = now;
 
             // handle bad checksum
             if (calculate_checksum(this->rx_buffer_) != this->rx_buffer_[this->rx_buffer_.size() - 1])
@@ -205,13 +198,22 @@ namespace esphome
               break;
             }
 
-            // notify valid device components
-            for (auto &device : this->devices_)
+            // TODO: add a flag to ignore out of order responses
+            // check to see if the response is for the last request (request/response is in order)
+            if (this - rx_buffer_[2] == this->last_request_id && this->rx_buffer_[4] == this->last_request_zone)
             {
-              if (device->zone_number == this->rx_buffer_[4])
+              // notify valid device components
+              for (auto &device : this->devices_)
               {
-                device->on_message_received(this->rx_buffer_);
+                if (device->zone_number == this->rx_buffer_[4])
+                {
+                  device->on_message_received(this->rx_buffer_);
+                }
               }
+            }
+            else
+            {
+              ESP_LOGV(TAG, "Response not for last request. Ignoring...");
             }
 
             // reset state
@@ -219,7 +221,9 @@ namespace esphome
             break;
           }
         }
+
+        // will overflow back to 0 when it reaches the top
+        this->last_request_id++;
       }
-    }
-  } // namespace lgap
-} // namespace esphome
+    } // namespace lgap
+  }   // namespace esphome
