@@ -225,5 +225,6 @@ namespace esphome
         // will overflow back to 0 when it reaches the top
         this->last_request_id_++;
       }
-    } // namespace lgap
-  }   // namespace esphome
+    }
+  } // namespace lgap
+} // namespace esphome
