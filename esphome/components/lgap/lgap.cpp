@@ -70,10 +70,10 @@ namespace esphome
       if (this->state_ == State::REQUEST_NEXT_DEVICE_STATUS)
       {
         // enable wait time between loops
-        // if ((now - this->last_loop_time_) < this->loop_wait_time_)
-        //   return;
-        // else
-        //   this->last_loop_time_ = now;
+        if ((now - this->last_loop_time_) < this->loop_wait_time_)
+          return;
+        else
+          this->last_loop_time_ = now;
 
         ESP_LOGV(TAG, "REQUEST_NEXT_DEVICE_STATUS");
 
