@@ -9,9 +9,14 @@ namespace esphome
 {
   namespace lgap
   {
-    class LGAPDevice; 
-    
-    enum State { REQUEST_NEXT_DEVICE_STATUS, PROCESS_DEVICE_STATUS_START, PROCESS_DEVICE_STATUS_CONTINUE};
+    class LGAPDevice;
+
+    enum State
+    {
+      REQUEST_NEXT_DEVICE_STATUS,
+      PROCESS_DEVICE_STATUS_START,
+      PROCESS_DEVICE_STATUS_CONTINUE
+    };
 
     class LGAP : public uart::UARTDevice, public Component
     {
@@ -23,15 +28,16 @@ namespace esphome
         float get_setup_priority() const override;
         void dump_config() override;
         void loop() override;
-        
-        void set_loop_wait_time(uint16_t time_in_ms) { this->loop_wait_time_= time_in_ms; }
+
+        void set_loop_wait_time(uint16_t time_in_ms) { this->loop_wait_time_ = time_in_ms; }
         void set_debug(bool debug) { this->debug_ = debug; }
 
         void set_flow_control_pin(GPIOPin *flow_control_pin) { this->flow_control_pin_ = flow_control_pin; }
         void set_send_wait_time(uint16_t time_in_ms) { this->send_wait_time_ = time_in_ms; }
         void set_receive_wait_time(uint16_t time_in_ms) { this->receive_wait_time_ = time_in_ms; }
         void set_zone_check_wait_time(uint16_t time_in_ms) { this->zone_check_wait_time_ = time_in_ms; }
-        void register_device(LGAPDevice *device) {
+        void register_device(LGAPDevice *device)
+        {
           ESP_LOGV(TAG, "Registering device");
           this->devices_.push_back(device);
         }
@@ -48,24 +54,24 @@ namespace esphome
         uint16_t send_wait_time_{250};
         uint16_t receive_wait_time_{250};
 
-        //used for keeping track of req/resp pairs
+        // used for keeping track of req/resp pairs
         uint8_t last_request_id_{0};
         uint8_t last_request_zone_{0};
 
-        //timestamps
+        // timestamps
         uint32_t last_loop_time_{0};
         uint32_t last_zone_check_time_{0};
         uint32_t last_send_time_{0};
         uint32_t last_receive_time_{0};
         uint32_t receive_until_time_{0};
 
-
         std::vector<uint8_t> rx_buffer_;
         std::vector<uint8_t> tx_buffer_;
 
         std::vector<LGAPDevice *> devices_{};
 
+      private:
+        void LGAP::clear_rx_buffer();
     };
-
   } // namespace lgap
 } // namespace esphome
