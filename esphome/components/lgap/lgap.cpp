@@ -26,14 +26,14 @@ namespace esphome
         ESP_LOGCONFIG(TAG, "Flow control pin not set.");
       }
 
-      ESP_LOGCONFIG(TAG, "  Send Wait Time: %dms", this->send_wait_time_);
-      ESP_LOGCONFIG(TAG, "  Receive Wait Time: %dms", this->receive_wait_time_);
-      ESP_LOGCONFIG(TAG, "  Zone Check Wait Time: %dms", this->zone_check_wait_time_);
+      ESP_LOGCONFIG(TAG, "  Loop wait time: %dms", this->loop_wait_time_);
+      ESP_LOGCONFIG(TAG, "  Send wait Time: %dms", this->send_wait_time_);
+      ESP_LOGCONFIG(TAG, "  Receive wait time: %dms", this->receive_wait_time_);
+      ESP_LOGCONFIG(TAG, "  Zone check wait time: %dms", this->zone_check_wait_time_);
       ESP_LOGCONFIG(TAG, "  Child devices: %d", this->devices_.size());
       if (this->debug_ == true)
       {
         ESP_LOGCONFIG(TAG, "  Debug: true");
-        ESP_LOGCONFIG(TAG, "  Debug wait time: %dms", this->debug_wait_time_);
       }
     }
 
