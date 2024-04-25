@@ -10,8 +10,8 @@ namespace esphome
   {
 
     static const char *const TAG = "lgap.climate";
-    static const u_int8_t MIN_TEMPERATURE = 16;
-    static const u_int8_t MAX_TEMPERATURE = 36;
+    static const uint8_t MIN_TEMPERATURE = 16;
+    static const uint8_t MAX_TEMPERATURE = 36;
 
     void LGAPHVACClimate::dump_config()
     {
@@ -363,6 +363,7 @@ namespace esphome
       int current_temperature = ((70 - message[8] * 100.0 / 256.0)) / 100.0;
       if (current_temperature != this->current_temperature_)
       {
+        ESP_LOGD(TAG, "Current temperature: %d", current_temperature);
         this->current_temperature_ = current_temperature;
         this->current_temperature = current_temperature;
         publish_update = true;
