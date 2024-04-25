@@ -44,7 +44,7 @@ namespace esphome
         bool debug_{true};
         int last_zone_checked_index_{-1};
 
-        uint16_t debug_wait_time_{1000};
+        uint16_t loop_wait_time_{250};
         uint16_t zone_check_wait_time_{1000};
         uint16_t send_wait_time_{250};
         uint16_t receive_wait_time_{250};
@@ -54,7 +54,7 @@ namespace esphome
         uint8_t last_request_zone_{0};
 
         //timestamps
-        uint32_t last_debug_time_{0};
+        uint32_t last_loop_time_{0};
         uint32_t last_zone_check_time_{0};
         uint32_t last_send_time_{0};
         uint32_t last_receive_time_{0};

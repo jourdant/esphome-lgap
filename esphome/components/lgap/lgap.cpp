@@ -15,7 +15,17 @@ namespace esphome
     {
       ESP_LOGCONFIG(TAG, "LGAP:");
       check_uart_settings(4800);
-      ESP_LOGCONFIG(TAG, "  Flow Control Pin: %s", this->flow_control_pin_ ? this->flow_control_pin_->dump_summary() : "N/A");
+
+      ESP_LOGCONFIG(TAG, "  Flow Control Pin:");
+      if (this->flow_control_pin_ != null)
+      {
+        this->flow_control_pin_->dump_summary();
+      }
+      else
+      {
+        ESP_LOGCONFIG(TAG, "Flow control pin not set.");
+      }
+
       ESP_LOGCONFIG(TAG, "  Send Wait Time: %dms", this->send_wait_time_);
       ESP_LOGCONFIG(TAG, "  Receive Wait Time: %dms", this->receive_wait_time_);
       ESP_LOGCONFIG(TAG, "  Zone Check Wait Time: %dms", this->zone_check_wait_time_);
@@ -48,14 +58,11 @@ namespace esphome
       if (this->devices_.size() == 0)
         return;
 
-      // allows debug mode to add artificial waits between loops
-      if (this->debug_ == true)
-      {
-        if ((now - this->last_debug_time_) < this->debug_wait_time_)
-          return;
-
-        this->last_debug_time_ = now;
-      }
+      // enable wait time between loops
+      if ((now - this->last_loop_time_) < this->loop_wait_time_)
+        return;
+      else
+        this->last_loop_time_ = now;
 
       // state == 0 - handle potential writes before reads
       if (this->state_ == 0)
@@ -221,10 +228,10 @@ namespace esphome
             break;
           }
         }
-
-        // will overflow back to 0 when it reaches the top
-        this->last_request_id_++;
       }
+
+      // will overflow back to 0 when it reaches the top
+      this->last_request_id_++;
     }
   } // namespace lgap
 } // namespace esphome

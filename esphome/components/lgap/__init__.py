@@ -23,7 +23,7 @@ CONF_ZONE_CHECK_WAIT_TIME = "zone_check_wait_time"
 CONF_FLOW_CONTROL_PIN = "flow_control_pin"
 
 #debug flags
-CONF_DEBUG_WAIT_TIME = "debug_wait_time"
+CONF_LOOP_WAIT_TIME = "loop_wait_time"
 CONF_DEBUG  = "debug"
 
 CONFIG_SCHEMA = uart.UART_DEVICE_SCHEMA.extend(
@@ -36,7 +36,7 @@ CONFIG_SCHEMA = uart.UART_DEVICE_SCHEMA.extend(
 
         #debug flags
         cv.Optional(CONF_DEBUG, default=False): cv.boolean,
-        cv.Optional(CONF_DEBUG_WAIT_TIME, default="1000ms"): cv.positive_time_period_milliseconds,
+        cv.Optional(CONF_LOOP_WAIT_TIME, default="250ms"): cv.positive_time_period_milliseconds,
     }
 ).extend(cv.COMPONENT_SCHEMA)
 
@@ -61,4 +61,4 @@ async def to_code(config):
 
     #debug flags
     cg.add(var.set_debug(config[CONF_DEBUG]))
-    cg.add(var.set_debug_wait_time(config[CONF_DEBUG_WAIT_TIME]))
+    cg.add(var.set_debug_wait_time(config[CONF_LOOP_WAIT_TIME]))
