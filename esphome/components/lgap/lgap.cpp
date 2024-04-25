@@ -52,6 +52,8 @@ namespace esphome
 
     void LGAP::clear_rx_buffer()
     {
+      ESP_LOGD(TAG, "Clearing rx buffer...");
+
       // clear internal rx buffer
       this->rx_buffer_.clear();
       // clear uart rx buffer
@@ -75,7 +77,7 @@ namespace esphome
         else
           this->last_loop_time_ = now;
 
-        ESP_LOGD(TAG, "REQUEST_NEXT_DEVICE_STATUS");
+        ESP_LOGV(TAG, "REQUEST_NEXT_DEVICE_STATUS");
 
         // cycle through zones
         this->last_zone_checked_index_ = (this->last_zone_checked_index_ + 1) > this->devices_.size() - 1 ? 0 : this->last_zone_checked_index_ + 1;
@@ -133,12 +135,12 @@ namespace esphome
         uint8_t c;
         read_byte(&c);
         this->last_receive_time_ = now;
-        ESP_LOGD(TAG, "Received Byte  %d (0X%x)", c, c);
+        ESP_LOGV(TAG, "Received Byte  %d (0X%x)", c, c);
 
         // read the start of a new response
         if (this->state_ == State::PROCESS_DEVICE_STATUS_START)
         {
-          ESP_LOGD(TAG, "PROCESS_DEVICE_STATUS_START");
+          ESP_LOGV(TAG, "PROCESS_DEVICE_STATUS_START");
 
           // handle valid start of response
           if (c == 0x10 && this->rx_buffer_.size() == 0)
@@ -163,7 +165,7 @@ namespace esphome
 
         if (this->state_ == State::PROCESS_DEVICE_STATUS_CONTINUE)
         {
-          ESP_LOGD(TAG, "PROCESS_DEVICE_STATUS_CONTINUE");
+          ESP_LOGV(TAG, "PROCESS_DEVICE_STATUS_CONTINUE");
 
           // add byte to rx buffer
           this->rx_buffer_.push_back(c);
@@ -177,7 +179,7 @@ namespace esphome
             if (calculate_checksum(this->rx_buffer_) != this->rx_buffer_[this->rx_buffer_.size() - 1])
             {
               // todo: include response bytes in printout
-              ESP_LOGE(TAG, "Checksum failed for response");
+              ESP_LOGD(TAG, "Checksum failed for response");
               clear_rx_buffer();
               this->state_ = State::REQUEST_NEXT_DEVICE_STATUS;
               return;
