@@ -116,7 +116,8 @@ namespace esphome
         }
 
         // will overflow back to 0 when it reaches the top
-        this->last_request_id_++;
+        // todo: implement this properly in the protocol
+        // this->last_request_id_++;
         return;
       }
 
