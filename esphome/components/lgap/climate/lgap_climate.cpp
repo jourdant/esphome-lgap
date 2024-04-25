@@ -220,14 +220,14 @@ namespace esphome
 
     void LGAPHVACClimate::handle_generate_lgap_request(std::vector<uint8_t> &message, uint8_t &request_id)
     {
-      ESP_LOGD(TAG, "Generating %s request message...", (this->write_update_pending ? "WRITE" : "READ"));
+      ESP_LOGD(TAG, "Generating %s request message for zone %d...", (this->write_update_pending ? "WRITE" : "READ"), this->zone_number);
 
       // only create a write request if there is a pending message
       int write_state = this->write_update_pending ? 2 : 0;
 
       // build payload in message buffer
-      message.push_back(128);
-      message.push_back(111);
+      message.push_back(0);
+      message.push_back(0);
       message.push_back(request_id);
       message.push_back(this->zone_number);
       message.push_back(write_state | this->power_state_);
@@ -242,7 +242,7 @@ namespace esphome
     // todo: add handling for when mode change is requested but mode is already on with another zone, ie can't choose heat when cool is already on
     void LGAPHVACClimate::handle_on_message_received(std::vector<uint8_t> &message)
     {
-      ESP_LOGD(TAG, "LGAP message received");
+      ESP_LOGD(TAG, "Processing climate message...");
 
       // handle bad class config
       if (this->zone_number < 0)
@@ -360,7 +360,7 @@ namespace esphome
 
       // current temp
       //TODO: implement precision setting for reported temperature
-      int current_temperature = std::roundf((70 - message[8] * 100.0 / 256.0)) / 100.0;
+      int current_temperature = ((70 - message[8] * 100.0 / 256.0)) / 100.0;
       if (current_temperature != this->current_temperature_)
       {
         this->current_temperature_ = current_temperature;
