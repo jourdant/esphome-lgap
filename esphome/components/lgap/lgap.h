@@ -43,6 +43,8 @@ namespace esphome
         }
 
       protected:
+        void clear_rx_buffer();
+
         GPIOPin *flow_control_pin_{nullptr};
 
         State state_{REQUEST_NEXT_DEVICE_STATUS};
@@ -70,8 +72,6 @@ namespace esphome
 
         std::vector<LGAPDevice *> devices_{};
 
-      private:
-        void LGAP::clear_rx_buffer();
     };
   } // namespace lgap
 } // namespace esphome
