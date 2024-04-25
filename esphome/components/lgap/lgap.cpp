@@ -59,10 +59,10 @@ namespace esphome
         return;
 
       // enable wait time between loops
-      if ((now - this->last_loop_time_) < this->loop_wait_time_)
-        return;
-      else
-        this->last_loop_time_ = now;
+      // if ((now - this->last_loop_time_) < this->loop_wait_time_)
+      //   return;
+      // else
+      //   this->last_loop_time_ = now;
 
       // state == 0 - handle potential writes before reads
       if (this->state_ == 0)
@@ -82,7 +82,7 @@ namespace esphome
             device->write_update_pending = false;
 
             // generate payload to send
-            device->generate_lgap_request(*&this->tx_buffer_);
+            device->generate_lgap_request(&this->tx_buffer_);
 
             if (this->flow_control_pin_ != nullptr)
               this->flow_control_pin_->digital_write(true);

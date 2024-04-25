@@ -24,6 +24,15 @@ namespace esphome
         float current_temperature_{0.0f};
         float target_temperature_{0.0f};
 
+        //todo: evaluate whether to use esppreferenceobject or not
+        // ESPPreferenceObject power_state_preference_; //uint8_t
+        // ESPPreferenceObject swing_preference_; //uint8_t
+        // ESPPreferenceObject mode_preference_; //uint8_t
+        // ESPPreferenceObject fan_speed_preference_; //uint8_t
+
+        // optional<float> target_temperature_;
+        // optional<float> current_temperature_;
+
         void handle_on_message_received(std::vector<uint8_t> &message) override;
         void handle_generate_lgap_request(std::vector<uint8_t> &message) override;
       };

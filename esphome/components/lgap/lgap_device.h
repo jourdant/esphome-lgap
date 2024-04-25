@@ -21,6 +21,9 @@ namespace esphome
         void on_message_received(std::vector<uint8_t> &message);
         void generate_lgap_request(std::vector<uint8_t> &message);
         
+        // uint32_t last_uart_update_time_{0};
+        // uint32_t last_ha_update_time_{0};
+
       protected:
         friend LGAP;
         LGAP *parent_;

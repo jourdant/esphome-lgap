@@ -10,6 +10,8 @@ namespace esphome
   {
 
     static const char *const TAG = "lgap.climate";
+    static const u_int8_t MIN_TEMPERATURE = 16;
+    static const u_int8_t MAX_TEMPERATURE = 36;
 
     void LGAPHVACClimate::dump_config()
     {
@@ -19,6 +21,8 @@ namespace esphome
       ESP_LOGCONFIG(TAG, "  Swing: %d", (int)this->swing_mode);
       ESP_LOGCONFIG(TAG, "  Temperature: %d", this->target_temperature);
     }
+
+
 
     void LGAPHVACClimate::setup()
     {
@@ -38,7 +42,7 @@ namespace esphome
         this->mode = climate::CLIMATE_MODE_OFF;
 
         // initialize target temperature to some value so that it's not NAN
-        this->target_temperature = roundf(clamp(this->current_temperature, 16.0f, 34.0f));
+        this->target_temperature = roundf(clamp(this->current_temperature, (float)MIN_TEMPERATURE, (float)MAX_TEMPERATURE));
         this->fan_mode = climate::CLIMATE_FAN_AUTO;
         this->swing_mode = climate::CLIMATE_SWING_OFF;
         this->preset = climate::CLIMATE_PRESET_NONE;
@@ -68,12 +72,9 @@ namespace esphome
           climate::CLIMATE_MODE_COOL,
           climate::CLIMATE_MODE_FAN_ONLY,
           climate::CLIMATE_MODE_HEAT_COOL,
-          // todo: validate this comment
-          // Adding this leads to esphome data not showing on Home Assistant somehow, hence skipping. Others please try and let me know
       });
 
       traits.set_supported_fan_modes({
-          climate::CLIMATE_FAN_AUTO,
           climate::CLIMATE_FAN_LOW,
           climate::CLIMATE_FAN_MEDIUM,
           climate::CLIMATE_FAN_HIGH,
@@ -85,8 +86,8 @@ namespace esphome
       });
 
       // todo: validate these min/max numbers
-      traits.set_visual_min_temperature(16);
-      traits.set_visual_max_temperature(34);
+      traits.set_visual_min_temperature(MIN_TEMPERATURE);
+      traits.set_visual_max_temperature(MAX_TEMPERATURE);
       traits.set_visual_temperature_step(1);
       return traits;
     }
