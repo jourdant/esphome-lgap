@@ -185,8 +185,10 @@ namespace esphome
 
             // TODO: add a flag to ignore out of order responses
             // check to see if the response is for the last request (request/response is in order)
-            if (this->rx_buffer_[2] == this->last_request_id_ && this->rx_buffer_[4] == (this->last_request_zone_ - 1))
+            if (this->rx_buffer_[2] == (this->last_request_id_ - 1) && this->rx_buffer_[4] == this->last_request_zone_)
             {
+              ESP_LOGD(TAG, "Valid response. Notifying zone %d...", this->last_request_zone_);
+
               // notify valid device components
               for (auto &device : this->devices_)
               {
@@ -199,7 +201,7 @@ namespace esphome
             else
             {
               ESP_LOGD(TAG, "Response not for last request. Ignoring...");
-              ESP_LOGD(TAG, "rx_buffer[2] (%d) == last_request_id (%d)", this->rx_buffer_[2], this->last_request_id_);
+              ESP_LOGD(TAG, "rx_buffer[2] (%d) == last_request_id-1 (%d)", this->rx_buffer_[2], (this->last_request_id_ - 1));
               ESP_LOGD(TAG, "rx_buffer[4] (%d) == last_request_zone_ (%d)", this->rx_buffer_[4], this->last_request_zone_);
             }
 
