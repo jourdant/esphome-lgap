@@ -17,7 +17,7 @@ namespace esphome
       check_uart_settings(4800);
 
       ESP_LOGCONFIG(TAG, "  Flow Control Pin:");
-      if (this->flow_control_pin_ != null)
+      if (this->flow_control_pin_ != nullptr)
       {
         this->flow_control_pin_->dump_summary();
       }
@@ -50,6 +50,15 @@ namespace esphome
       return (result & 0xff) ^ 0x55;
     }
 
+    void LGAP::clear_rx_buffer()
+    {
+      // clear internal rx buffer
+      this->rx_buffer_.clear();
+      // clear uart rx buffer
+      while (this->available())
+        this->read();
+    }
+
     void LGAP::loop()
     {
       const uint32_t now = millis();
@@ -58,135 +67,103 @@ namespace esphome
       if (this->devices_.size() == 0)
         return;
 
-      // enable wait time between loops
-      // if ((now - this->last_loop_time_) < this->loop_wait_time_)
-      //   return;
-      // else
-      //   this->last_loop_time_ = now;
-
-      // state == 0 - handle potential writes before reads
-      if (this->state_ == 0)
+      if (this->state_ == State::REQUEST_NEXT_DEVICE_STATUS)
       {
+        // enable wait time between loops
+        // if ((now - this->last_loop_time_) < this->loop_wait_time_)
+        //   return;
+        // else
+        //   this->last_loop_time_ = now;
+
+        ESP_LOGV(TAG, "REQUEST_NEXT_DEVICE_STATUS");
+
+        // cycle through zones
+        this->last_zone_checked_index_ = (this->last_zone_checked_index_ + 1) > this->devices_.size() - 1 ? 0 : this->last_zone_checked_index_ + 1;
         if (this->debug_ == true)
-          ESP_LOGV(TAG, "State: 0");
+          ESP_LOGV(TAG, "this->devices_[%d]->zone_number = %d", this->last_zone_checked_index_, this->devices_[this->last_zone_checked_index_]->zone_number);
 
-        // 1. check if anything needs to be sent right now
-        for (auto &device : this->devices_)
+        // retrieve lgap message from device if it has a valid zone number
+        if (this->devices_[this->last_zone_checked_index_]->zone_number > -1)
         {
-          ESP_LOGV(TAG, "Checking device %d for pending writes...", device->zone_number);
+          ESP_LOGV(TAG, "LGAP requesting update from zone %d", this->devices_[this->last_zone_checked_index_]->zone_number);
 
-          if (device->zone_number > -1 && device->write_update_pending == true)
-          {
-            ESP_LOGV(TAG, "write_update_pending==true for zone %d", device->zone_number);
-            this->tx_buffer_.clear();
-            device->write_update_pending = false;
+          this->tx_buffer_.clear();
+          this->devices_[this->last_zone_checked_index_]->generate_lgap_request(*&this->tx_buffer_, this->last_request_id_);
 
-            // generate payload to send
-            device->generate_lgap_request(&this->tx_buffer_);
+          // signal flow control write mode enabled
+          if (this->flow_control_pin_ != nullptr)
+            this->flow_control_pin_->digital_write(true);
 
-            if (this->flow_control_pin_ != nullptr)
-              this->flow_control_pin_->digital_write(true);
+          // send data over uart
+          this->write_array(this->tx_buffer_.data(), this->tx_buffer_.size());
+          this->flush();
 
-            // don't allow writes of more than 8 bytes
-            int bytes_to_write = this->tx_buffer_.size() >= 8 ? 8 : this->tx_buffer_.size();
-            ESP_LOGV(TAG, "Writing %d bytes", bytes_to_write);
-            this->write_array(this->tx_buffer_.data(), bytes_to_write);
+          // signal flow control write mode disabled
+          if (this->flow_control_pin_ != nullptr)
+            this->flow_control_pin_->digital_write(false);
 
-            // write request to uart
-            this->flush();
-            this->tx_buffer_.clear();
-            ESP_LOGV(TAG, "flushed write buffer.");
+          // update state for last request
+          this->last_request_zone_ = this->devices_[this->last_zone_checked_index_]->zone_number;
+          this->last_send_time_ = this->last_zone_check_time_;
+          this->last_receive_time_ = this->last_zone_check_time_;
+          this->receive_until_time_ = millis() + this->receive_wait_time_;
 
-            if (this->flow_control_pin_ != nullptr)
-              this->flow_control_pin_->digital_write(false);
-
-            this->last_send_time_ = millis();
-            // this->last_receive_time_ = this->last_send_time_;
-            this->state_ = 1;
-            continue;
-          }
-          else
-          {
-            ESP_LOGV(TAG, "write_update_pending==false for zone %d", device->zone_number);
-          }
+          // update state machine
+          this->state_ = State::PROCESS_DEVICE_STATUS_START;
         }
 
-        // 2. read only request for next zone status
-        if (this->state_ == 0 && (now - this->last_zone_check_time_) > zone_check_wait_time_)
-        {
-          this->last_zone_check_time_ = millis();
-          if (this->debug_ == true)
-            ESP_LOGV(TAG, "Checking next zone");
-
-          // cycle through zones
-          this->last_zone_checked_index_ = (this->last_zone_checked_index_ + 1) > this->devices_.size() - 1 ? 0 : this->last_zone_checked_index_ + 1;
-          if (this->debug_ == true)
-            ESP_LOGV(TAG, "Checking zone index %d -> to zone number %d", this->last_zone_checked_index_, this->devices_[this->last_zone_checked_index_]->zone_number);
-
-          // retrieve lgap message from device if it has a valid zone number
-          if (this->devices_[this->last_zone_checked_index_]->zone_number > -1)
-          {
-            ESP_LOGV(TAG, "LGAP requesting update from zone %d", this->devices_[this->last_zone_checked_index_]->zone_number);
-
-            this->tx_buffer_.clear();
-            this->devices_[this->last_zone_checked_index_]->generate_lgap_request(*&this->tx_buffer_);
-
-            if (this->flow_control_pin_ != nullptr)
-              this->flow_control_pin_->digital_write(true);
-
-            // set correct request id and send over uart
-            this->tx_buffer_[2] = this->last_request_id_;
-            this->write_array(this->tx_buffer_.data(), this->tx_buffer_.size());
-            this->flush();
-
-            if (this->flow_control_pin_ != nullptr)
-              this->flow_control_pin_->digital_write(false);
-
-            // update state for last request
-            this->last_request_zone_ = this->devices_[this->last_zone_checked_index_]->zone_number;
-            this->last_send_time_ = this->last_zone_check_time_;
-            this->last_receive_time_ = this->last_zone_check_time_;
-            this->state_ = 1;
-          }
-        }
+        // will overflow back to 0 when it reaches the top
+        this->last_request_id_++;
+        return;
       }
 
-      if (this->debug_ == true)
-        ESP_LOGV(TAG, "Available: %d, State: %d", this->available(), this->state_);
-
-      // 3. read the response (only read when expecting a response)
-      while (this->available())
+      // handle reading timeouts
+      if ((this->receive_until_time_ - now) > this->receive_wait_time_)
       {
-        // handle reading timeouts
-        if ((now - this->last_receive_time_) > this->receive_wait_time_)
-        {
-          ESP_LOGV(TAG, "Last receive time exceeded. Clearing buffer...");
-          this->rx_buffer_.clear();
-          this->state_ = 0;
-          break;
-        }
+        ESP_LOGV(TAG, "Last receive time exceeded. Clearing buffer...");
+        clear_rx_buffer();
 
+        this->state_ = State::REQUEST_NEXT_DEVICE_STATUS;
+        return;
+      }
+
+      if (this->available())
+      {
         // read byte and process
         uint8_t c;
         read_byte(&c);
         this->last_receive_time_ = now;
-        ESP_LOGV(TAG, "LGAP received Byte  %d (0X%x)", c, c);
+        ESP_LOGV(TAG, "Received Byte  %d (0X%x)", c, c);
 
         // read the start of a new response
-        if (c == 0x10 && this->state_ == 1 && this->rx_buffer_.size() == 0)
+        if (this->state_ == State::PROCESS_DEVICE_STATUS_START)
         {
-          ESP_LOGV(TAG, "LGAP received start of new response");
+          ESP_LOGV(TAG, "PROCESS_DEVICE_STATUS_START");
 
-          this->state_ = 2;
-          this->rx_buffer_.clear();
-          this->rx_buffer_.push_back(c);
-          continue;
+          // handle valid start of response
+          if (c == 0x10 && this->rx_buffer_.size() == 0)
+          {
+            ESP_LOGV(TAG, "Received start of new response");
+
+            this->rx_buffer_.clear();
+            this->rx_buffer_.push_back(c);
+
+            this->state_ = State::PROCESS_DEVICE_STATUS_CONTINUE;
+          }
+          // handle invalid start of response
+          else
+          {
+            ESP_LOGV(TAG, "Received invalid start of response. Clearing buffer...");
+            clear_rx_buffer();
+            this->state_ = State::REQUEST_NEXT_DEVICE_STATUS;
+          }
+
+          return;
         }
 
-        // process a valid byte
-        if (this->state_ == 2)
+        if (this->state_ == State::PROCESS_DEVICE_STATUS_CONTINUE)
         {
-          ESP_LOGV(TAG, "State: 2");
+          ESP_LOGV(TAG, "PROCESS_DEVICE_STATUS_CONTINUE");
 
           // add byte to rx buffer
           this->rx_buffer_.push_back(c);
@@ -201,8 +178,9 @@ namespace esphome
             {
               // todo: include response bytes in printout
               ESP_LOGE(TAG, "Checksum failed for response");
-              this->state_ = 0;
-              break;
+              clear_rx_buffer();
+              this->state_ = State::REQUEST_NEXT_DEVICE_STATUS;
+              return;
             }
 
             // TODO: add a flag to ignore out of order responses
@@ -224,14 +202,12 @@ namespace esphome
             }
 
             // reset state
-            this->state_ = 0;
-            break;
+            clear_rx_buffer();
+            this->state_ = State::REQUEST_NEXT_DEVICE_STATUS;
+            return;
           }
         }
       }
-
-      // will overflow back to 0 when it reaches the top
-      this->last_request_id_++;
     }
   } // namespace lgap
 } // namespace esphome

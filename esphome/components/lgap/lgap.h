@@ -11,6 +11,8 @@ namespace esphome
   {
     class LGAPDevice; 
     
+    enum State { REQUEST_NEXT_DEVICE_STATUS, PROCESS_DEVICE_STATUS_START, PROCESS_DEVICE_STATUS_CONTINUE};
+
     class LGAP : public uart::UARTDevice, public Component
     {
       public:
@@ -37,10 +39,7 @@ namespace esphome
       protected:
         GPIOPin *flow_control_pin_{nullptr};
 
-        // state_: 0 - waiting for a message to be sent
-        // state_: 1 - waiting for a response to a sent message
-        // state_: 2 - reading a valid response
-        int state_{0};
+        State state_{REQUEST_NEXT_DEVICE_STATUS};
         bool debug_{true};
         int last_zone_checked_index_{-1};
 
@@ -58,6 +57,8 @@ namespace esphome
         uint32_t last_zone_check_time_{0};
         uint32_t last_send_time_{0};
         uint32_t last_receive_time_{0};
+        uint32_t receive_until_time_{0};
+
 
         std::vector<uint8_t> rx_buffer_;
         std::vector<uint8_t> tx_buffer_;
