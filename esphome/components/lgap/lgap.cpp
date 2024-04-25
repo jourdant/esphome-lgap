@@ -87,7 +87,7 @@ namespace esphome
         // retrieve lgap message from device if it has a valid zone number
         if (this->devices_[this->last_zone_checked_index_]->zone_number > -1)
         {
-          ESP_LOGD(TAG, "LGAP requesting update from zone %d", this->devices_[this->last_zone_checked_index_]->zone_number);
+          ESP_LOGD(TAG, "Requesting update from zone %d", this->devices_[this->last_zone_checked_index_]->zone_number);
 
           this->tx_buffer_.clear();
           this->devices_[this->last_zone_checked_index_]->generate_lgap_request(this->tx_buffer_, this->last_request_id_);
@@ -99,6 +99,7 @@ namespace esphome
           // send data over uart
           this->write_array(this->tx_buffer_.data(), this->tx_buffer_.size());
           this->flush();
+          this->tx_buffer_.clear();
 
           // signal flow control write mode disabled
           if (this->flow_control_pin_ != nullptr)
@@ -181,21 +182,21 @@ namespace esphome
               // todo: include response bytes in printout
               ESP_LOGD(TAG, "Checksum failed for response");
               clear_rx_buffer();
+
               this->state_ = State::REQUEST_NEXT_DEVICE_STATUS;
               return;
             }
 
             // TODO: add a flag to ignore out of order responses
             // check to see if the response is for the last request (request/response is in order)
-            if (this->rx_buffer_[2] == (this->last_request_id_ - 1) && this->rx_buffer_[4] == this->last_request_zone_)
+            if (this->rx_buffer_[4] == this->last_request_zone_ && this->rx_buffer_[2] == (this->last_request_id_ - 1))
             {
-              ESP_LOGD(TAG, "Valid response. Notifying zone %d...", this->last_request_zone_);
-
               // notify valid device components
               for (auto &device : this->devices_)
               {
                 if (device->zone_number == this->rx_buffer_[4])
                 {
+                  ESP_LOGD(TAG, "Valid message. Notifying zone %d...", this->last_request_zone_);
                   device->on_message_received(this->rx_buffer_);
                 }
               }

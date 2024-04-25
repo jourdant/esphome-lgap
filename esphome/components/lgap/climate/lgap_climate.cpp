@@ -220,6 +220,8 @@ namespace esphome
 
     void LGAPHVACClimate::handle_generate_lgap_request(std::vector<uint8_t> &message, uint8_t &request_id)
     {
+      ESP_LOGD(TAG, "Generating %s request message...", (this->write_update_pending ? "WRITE" : "READ"));
+
       // only create a write request if there is a pending message
       int write_state = this->write_update_pending ? 2 : 0;
 
