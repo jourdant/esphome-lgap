@@ -128,7 +128,7 @@ namespace esphome
               this->flow_control_pin_->digital_write(true);
 
             // set correct request id and send over uart
-            this->tx_buffer_[2] = this->last_request_id;
+            this->tx_buffer_[2] = this->last_request_id_;
             this->write_array(this->tx_buffer_.data(), this->tx_buffer_.size());
             this->flush();
 
@@ -136,7 +136,7 @@ namespace esphome
               this->flow_control_pin_->digital_write(false);
 
             // update state for last request
-            this->last_request_zone = this->devices_[this->last_zone_checked_index_]->zone_number;
+            this->last_request_zone_ = this->devices_[this->last_zone_checked_index_]->zone_number;
             this->last_send_time_ = this->last_zone_check_time_;
             this->last_receive_time_ = this->last_zone_check_time_;
             this->state_ = 1;
@@ -200,7 +200,7 @@ namespace esphome
 
             // TODO: add a flag to ignore out of order responses
             // check to see if the response is for the last request (request/response is in order)
-            if (this - rx_buffer_[2] == this->last_request_id && this->rx_buffer_[4] == this->last_request_zone)
+            if (this->rx_buffer_[2] == this->last_request_id_ && this->rx_buffer_[4] == this->last_request_zone_)
             {
               // notify valid device components
               for (auto &device : this->devices_)
@@ -223,7 +223,7 @@ namespace esphome
         }
 
         // will overflow back to 0 when it reaches the top
-        this->last_request_id++;
+        this->last_request_id_++;
       }
     } // namespace lgap
   }   // namespace esphome
