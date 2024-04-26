@@ -20,7 +20,7 @@ CONF_ZONE_NUMBER = "zone"
 CONFIG_SCHEMA = climate.CLIMATE_SCHEMA.extend(
     {
         cv.GenerateID(): cv.declare_id(LGAP_HVAC_Climate),
-        cv.Required(CONF_LGAP_ID): cv.use_id(LGAP),
+        cv.GenerateID(CONF_LGAP_ID): cv.use_id(LGAP),
         cv.Optional(CONF_ZONE_NUMBER, default=0): cv.All(cv.int_),
     }
 ).extend(cv.COMPONENT_SCHEMA)
