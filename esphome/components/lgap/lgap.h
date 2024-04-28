@@ -53,7 +53,7 @@ namespace esphome
         uint16_t receive_wait_time_{500};
 
         // used for keeping track of req/resp pairs
-        uint8_t last_request_id_{162};
+        uint8_t last_request_id_{250};
         uint8_t last_request_zone_{0};
 
         // timestamps
