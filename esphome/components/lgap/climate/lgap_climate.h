@@ -12,10 +12,15 @@ namespace esphome
       public:
         void dump_config() override;       
         void setup() override;
+        void set_temperature_publish_time(int temperature_publish_time) { this->temperature_publish_time_ = temperature_publish_time; }
         virtual esphome::climate::ClimateTraits traits() override;
         virtual void control(const esphome::climate::ClimateCall &call) override;
 
+
       protected:
+        uint32_t temperature_publish_time_{300000};
+        uint32_t temperature_last_publish_time_{0};
+
         uint8_t power_state_{0};
         uint8_t swing_{0};
         uint8_t mode_{0};
