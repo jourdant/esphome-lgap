@@ -360,14 +360,20 @@ namespace esphome
       // TODO: implement precision setting for reported temperature
       // int current_temperature = ((70 - message[8] * 100.0 / 256.0)) / 100.0;
       int current_temperature = (message[8] & 0xf) + 15;
-      ESP_LOGD(TAG, "Current temperature: %d",  current_temperature);
-      //checks that temperature is different AND that the publish time interval has passed
-      if (current_temperature != this->current_temperature_ && (this->temperature_last_publish_time_ + this->temperature_publish_time_ <= millis()))
+      ESP_LOGD(TAG, "Current temperature: %d", current_temperature);
+      // checks that temperature is different AND that the publish time interval has passed
+      if (current_temperature != this->current_temperature_)
       {
-        this->temperature_last_publish_time_ = millis();
-        this->current_temperature_ = current_temperature;
-        this->current_temperature = current_temperature;
-        publish_update = true;
+        if (this->temperature_last_publish_time_ + this->temperature_publish_time_ <= millis())
+        {
+          ESP_LOGD(TAG, "Temperature update time has lapsed. Sending update...");
+          this->temperature_last_publish_time_ = millis();
+          this->current_temperature_ = current_temperature;
+          this->current_temperature = current_temperature;
+          publish_update = true;
+        } else {
+          ESP_LOGD(TAG, "Temperature update time hasn't lapsed. Ignoring temperature difference...");
+        }
       }
 
       // send update to home assistant with all the changed variables
