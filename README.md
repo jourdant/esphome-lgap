@@ -7,6 +7,8 @@ _**NOTE:** This integration works with LG Outdoor Units (ODUs/inverters). If you
 
 One of the best benefits of using this integration is you can use a single LGAP interface on your outdoor unit (ODU) to drive multiple different indoor unit (IDU) zones.
 
+![homeassistant](./images/ha0.png)
+
 ![homeassistant](./images/ha.png)
 
 
