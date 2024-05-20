@@ -86,10 +86,11 @@ Format:
 |3|```0000_0000```|Unknown||
 |4|```XXXX_XXXX```|Zone Number|0-255|
 |5|```0000_0000```|Unknown||
-|6|```0000_0XXX```|Mode|Mode|0: Cool<br/>1: Dehumidify<br/>2: Fan<br/>3: Auto<br/>4: Heat|
+|6|```0000_00XX```|Mode|Mode|0: Cool<br/>1: Dehumidify<br/>2: Fan<br/>3: Auto<br/>4: Heat|
+||```0000_0X00```|Unknown||
 ||```0000_X000```|Swing|0: Off<br/>1: On|
-||```0XXX_0000```|Fan Speed|0: Low<br/>1: Medium<br/>2: High|
-||```X000_0000```|Unknown||
+||```00XX_0000```|Fan Speed|0: Low<br/>1: Medium<br/>2: High|
+||```XX00_0000```|Unknown||
 |7|```XXXX_XXXX```|Target Temperature|0-255**|
 |8|```XXXX_XXXX```|Room Temperature|0-255**|
 |9|```XXXX_XXXX```|_Pipe In Temp?_ or<br/>_Target Temp Lower?_|0-255**|
