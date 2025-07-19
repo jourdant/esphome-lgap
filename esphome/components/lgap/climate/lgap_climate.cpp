@@ -226,7 +226,7 @@ namespace esphome
       // build payload in message buffer
       message.push_back(0x80);
       message.push_back(0);
-      message.push_back(0xA0);
+      message.push_back(request_id);
       message.push_back(this->zone_number);
       message.push_back(write_state | this->power_state_);
       message.push_back(this->mode_ | (this->swing_ << 3) | (this->fan_speed_ << 4));
