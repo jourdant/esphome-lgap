@@ -371,9 +371,7 @@ namespace esphome
           this->current_temperature_ = current_temperature;
           this->current_temperature = current_temperature;
           publish_update = true;
-        }
-        else
-        {
+        } else {
           ESP_LOGD(TAG, "Temperature update time hasn't lapsed. Ignoring temperature difference...");
         }
       }
