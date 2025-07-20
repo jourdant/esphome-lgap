@@ -20,6 +20,7 @@ CONF_LGAP_ID = "lgap_id"
 CONF_RECEIVE_WAIT_TIME = "receive_wait_time"
 CONF_LOOP_WAIT_TIME = "loop_wait_time"
 CONF_FLOW_CONTROL_PIN = "flow_control_pin"
+CONF_TX_BYTE_0 = "tx_byte_0"
 
 #build schema
 CONFIG_SCHEMA = uart.UART_DEVICE_SCHEMA.extend(
@@ -28,6 +29,7 @@ CONFIG_SCHEMA = uart.UART_DEVICE_SCHEMA.extend(
         cv.Optional(CONF_FLOW_CONTROL_PIN): pins.gpio_output_pin_schema,
         cv.Optional(CONF_RECEIVE_WAIT_TIME, default="500ms"): cv.positive_time_period_milliseconds,
         cv.Optional(CONF_LOOP_WAIT_TIME, default="500ms"): cv.positive_time_period_milliseconds,
+        cv.Optional(CONF_TX_BYTE_0, default=0): cv.int_range(0, 255),
     }
 ).extend(cv.COMPONENT_SCHEMA)
 
@@ -49,3 +51,6 @@ async def to_code(config):
     #times
     cg.add(var.set_receive_wait_time(config[CONF_RECEIVE_WAIT_TIME]))
     cg.add(var.set_loop_wait_time(config[CONF_LOOP_WAIT_TIME]))
+
+    # TX
+    cg.add(var.set_tx_byte_0(config[CONF_TX_BYTE_0]))
