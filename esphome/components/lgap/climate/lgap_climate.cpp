@@ -224,7 +224,7 @@ namespace esphome
       int write_state = this->write_update_pending ? 2 : 0;
 
       // build payload in message buffer
-      message.push_back(0x80);
+      message.push_back(this->parent_->get_tx_byte_0());
       message.push_back(0);
       message.push_back(request_id);
       message.push_back(this->zone_number);
@@ -371,7 +371,9 @@ namespace esphome
           this->current_temperature_ = current_temperature;
           this->current_temperature = current_temperature;
           publish_update = true;
-        } else {
+        }
+        else
+        {
           ESP_LOGD(TAG, "Temperature update time hasn't lapsed. Ignoring temperature difference...");
         }
       }
