@@ -26,6 +26,7 @@ namespace esphome
         ESP_LOGCONFIG(TAG, "Flow control pin not set.");
       }
 
+      ESP_LOGCONFIG(TAG, "  First TX byte: 0x%02X", this->tx_byte_0_);
       ESP_LOGCONFIG(TAG, "  Loop wait time: %dms", this->loop_wait_time_);
       ESP_LOGCONFIG(TAG, "  Receive wait time: %dms", this->receive_wait_time_);
       ESP_LOGCONFIG(TAG, "  Child devices: %d", this->devices_.size());
