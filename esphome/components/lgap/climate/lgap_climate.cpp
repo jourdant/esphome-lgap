@@ -58,10 +58,7 @@ namespace esphome
     esphome::climate::ClimateTraits LGAPHVACClimate::traits()
     {
       auto traits = climate::ClimateTraits();
-      traits.set_supports_current_temperature(true);
-      traits.set_supports_two_point_target_temperature(false);
-      traits.set_supports_current_humidity(false);
-      traits.set_supports_target_humidity(false);
+      traits.add_feature_flags(climate::CLIMATE_SUPPORTS_CURRENT_TEMPERATURE | climate::CLIMATE_SUPPORTS_ACTION);
 
       traits.set_supported_modes({
           climate::CLIMATE_MODE_OFF,
@@ -291,6 +288,7 @@ namespace esphome
         if (power_state == 0)
         {
           this->mode = climate::CLIMATE_MODE_OFF;
+          this->action = climate::CLIMATE_ACTION_OFF;
         }
 
         // update state
@@ -374,6 +372,48 @@ namespace esphome
         } else {
           ESP_LOGD(TAG, "Temperature update time hasn't lapsed. Ignoring temperature difference...");
         }
+      }
+
+      // determine climate action based on mode and temperature
+      climate::ClimateAction new_action = climate::CLIMATE_ACTION_OFF;
+      if (this->power_state_ == 1)
+      {
+        switch (this->mode_)
+        {
+          case 0: // cool
+            new_action = (this->current_temperature > this->target_temperature)
+                ? climate::CLIMATE_ACTION_COOLING
+                : climate::CLIMATE_ACTION_IDLE;
+            break;
+          case 1: // dry
+            new_action = climate::CLIMATE_ACTION_DRYING;
+            break;
+          case 2: // fan only
+            new_action = climate::CLIMATE_ACTION_FAN;
+            break;
+          case 3: // heat_cool (auto)
+            if (this->current_temperature > this->target_temperature)
+              new_action = climate::CLIMATE_ACTION_COOLING;
+            else if (this->current_temperature < this->target_temperature)
+              new_action = climate::CLIMATE_ACTION_HEATING;
+            else
+              new_action = climate::CLIMATE_ACTION_IDLE;
+            break;
+          case 4: // heat
+            new_action = (this->current_temperature < this->target_temperature)
+                ? climate::CLIMATE_ACTION_HEATING
+                : climate::CLIMATE_ACTION_IDLE;
+            break;
+          default:
+            new_action = climate::CLIMATE_ACTION_IDLE;
+            break;
+        }
+      }
+
+      if (this->action != new_action)
+      {
+        this->action = new_action;
+        publish_update = true;
       }
 
       // send update to home assistant with all the changed variables
