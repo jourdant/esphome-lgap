@@ -18,7 +18,9 @@ LGAP_HVAC_Climate = lgap_ns.class_("LGAPHVACClimate", cg.Component, climate.Clim
 CONF_ZONE_NUMBER = "zone"
 CONF_TEMPERATURE_PUBISH_TIME = "temperature_publish_time"
 
-CONFIG_SCHEMA = climate.CLIMATE_SCHEMA.extend(
+CONFIG_SCHEMA = climate.climate_schema(
+    LGAP_HVAC_Climate  # The component's class type
+).extend(
     {
         cv.GenerateID(): cv.declare_id(LGAP_HVAC_Climate),
         cv.GenerateID(CONF_LGAP_ID): cv.use_id(LGAP),

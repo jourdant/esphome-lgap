@@ -224,7 +224,7 @@ namespace esphome
       int write_state = this->write_update_pending ? 2 : 0;
 
       // build payload in message buffer
-      message.push_back(0);
+      message.push_back(this->parent_->get_tx_byte_0());
       message.push_back(0);
       message.push_back(request_id);
       message.push_back(this->zone_number);
