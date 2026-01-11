@@ -77,3 +77,19 @@ climate:
 ```
 
 If you want to add extra zones, you can reference the same ```lgap_id``` on the climate component. It is also possible to have multiple LGAP protocol components using different UART components in the same configuration.
+
+
+## Climate Action Inference
+
+Home Assistant allows current action of climate devices to be reported. This shows up in the climate card as something like "Heating to 24°C" or "Idle" etc. I haven't found in the LGAP protocol whether the compressor or heating element is actively running. This component **infers** the current action based on the operating mode and temperature comparison:
+
+| Mode | Reported Action |
+|------|-----------------|
+| **Off** | `OFF` |
+| **Cool** | `COOLING` if current temp > target temp, otherwise `IDLE` |
+| **Heat** | `HEATING` if current temp < target temp, otherwise `IDLE` |
+| **Heat/Cool (Auto)** | `COOLING` if current > target, `HEATING` if current < target, otherwise `IDLE` |
+| **Dry** | `DRYING` (always, when active) |
+| **Fan Only** | `FAN` (always, when active) |
+
+**Note:** This is an approximation. The actual compressor state may differ due to factors like defrost cycles, minimum run times, or thermostat deadbands within the unit. If you discover a byte in the LGAP protocol that indicates actual compressor status, please open an issue or PR!
