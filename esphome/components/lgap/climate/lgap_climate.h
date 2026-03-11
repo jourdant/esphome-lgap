@@ -144,6 +144,8 @@ namespace esphome
         void set_power_only_mode(bool state);
         void set_plasma(bool state);
         bool get_plasma() const { return this->plasma_; }
+        void set_timer_duration_minutes(float minutes) { this->timer_duration_minutes_ = minutes; }
+        float get_timer_duration_minutes() const { return this->timer_duration_minutes_; }
         void set_zone_active_load_sensor(sensor::Sensor *sensor) { this->zone_active_load_sensor_ = sensor; }
         void set_zone_power_state_sensor(sensor::Sensor *sensor) { this->zone_power_state_sensor_ = sensor; }
         void set_zone_design_load_sensor(sensor::Sensor *sensor) { this->zone_design_load_sensor_ = sensor; }
@@ -181,6 +183,7 @@ namespace esphome
         
         // Timer state
         bool timer_active_{false};
+        float timer_duration_minutes_{0};  // Configured timer duration (persists)
         uint32_t timer_end_time_{0};  // millis() when timer expires
         uint32_t timer_last_update_{0};  // Last time we published remaining time
         

@@ -80,14 +80,17 @@ namespace esphome
       
       if (this->parent_ != nullptr)
       {
-        if (value > 0)
+        // Save the duration (timer will auto-start when AC turns ON)
+        this->parent_->set_timer_duration_minutes(value);
+        
+        // If AC is currently ON and duration > 0, start timer now
+        if (value > 0 && this->parent_->mode != climate::CLIMATE_MODE_OFF)
         {
-          // Start/update timer
           this->parent_->start_timer(value);
         }
-        else
+        else if (value == 0)
         {
-          // Cancel timer
+          // Duration set to 0 - cancel any active timer
           this->parent_->cancel_timer();
         }
       }
@@ -345,6 +348,15 @@ namespace esphome
           {
             this->power_state_ = 1;
             this->mode_ = 3;
+          }
+          
+          // Auto-start sleep timer if AC is turning ON and timer duration is set
+          bool was_off = (this->mode == climate::CLIMATE_MODE_OFF);
+          bool turning_on = (mode != climate::CLIMATE_MODE_OFF);
+          if (was_off && turning_on && this->timer_duration_minutes_ > 0)
+          {
+            ESP_LOGI(TAG, "AC turning ON - auto-starting sleep timer for %.0f minutes", this->timer_duration_minutes_);
+            this->start_timer(this->timer_duration_minutes_);
           }
         }
 
@@ -936,7 +948,7 @@ namespace esphome
       // Check if timer has expired
       if (now >= this->timer_end_time_)
       {
-        ESP_LOGI(TAG, "Sleep timer expired - turning unit OFF");
+        ESP_LOGI(TAG, "Sleep timer expired - turning unit OFF (duration %.0f min remains saved)", this->timer_duration_minutes_);
         this->timer_active_ = false;
         
         // Turn off the unit
@@ -944,11 +956,8 @@ namespace esphome
         call.set_mode(climate::CLIMATE_MODE_OFF);
         call.perform();
         
-        // Reset timer to 0
-        if (this->timer_duration_number_ != nullptr)
-        {
-          this->timer_duration_number_->publish_state(0);
-        }
+        // Duration stays saved (timer_duration_minutes_) - will auto-restart next time AC turns ON
+        // Don't reset timer_duration_number_ to 0 - user's setting is preserved
         
         // Publish 0 remaining time
         if (this->timer_remaining_sensor_ != nullptr)
