@@ -7,7 +7,7 @@ from esphome.const import (
 )
 from esphome import pins
 
-DEPENDENCIES = ["uart"]
+DEPENDENCIES = ["uart", "sensor", "number", "switch"]
 CODEOWNERS = ["@jourdant"]
 MULTI_CONF = True
 
@@ -29,7 +29,7 @@ CONFIG_SCHEMA = uart.UART_DEVICE_SCHEMA.extend(
         cv.Optional(CONF_FLOW_CONTROL_PIN): pins.gpio_output_pin_schema,
         cv.Optional(CONF_RECEIVE_WAIT_TIME, default="500ms"): cv.positive_time_period_milliseconds,
         cv.Optional(CONF_LOOP_WAIT_TIME, default="500ms"): cv.positive_time_period_milliseconds,
-        cv.Optional(CONF_TX_BYTE_0, default=0): cv.int_range(0, 255),
+        cv.Optional(CONF_TX_BYTE_0, default=0x80): cv.hex_uint8_t,
     }
 ).extend(cv.COMPONENT_SCHEMA)
 
@@ -51,6 +51,6 @@ async def to_code(config):
     #times
     cg.add(var.set_receive_wait_time(config[CONF_RECEIVE_WAIT_TIME]))
     cg.add(var.set_loop_wait_time(config[CONF_LOOP_WAIT_TIME]))
-
-    # TX
+    
+    #first tx byte
     cg.add(var.set_tx_byte_0(config[CONF_TX_BYTE_0]))

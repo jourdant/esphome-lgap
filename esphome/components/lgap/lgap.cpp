@@ -1,5 +1,6 @@
 #include "lgap.h"
 #include "lgap_device.h"
+#include "climate/lgap_climate.h"
 #include "esphome/core/helpers.h"
 #include "esphome/core/log.h"
 #include <cinttypes>
@@ -19,16 +20,18 @@ namespace esphome
       ESP_LOGCONFIG(TAG, "  Flow Control Pin:");
       if (this->flow_control_pin_ != nullptr)
       {
-        this->flow_control_pin_->dump_summary();
+        char buffer[64];
+        this->flow_control_pin_->dump_summary(buffer, sizeof(buffer));
+        ESP_LOGCONFIG(TAG, "    %s", buffer);
       }
       else
       {
-        ESP_LOGCONFIG(TAG, "Flow control pin not set.");
+        ESP_LOGCONFIG(TAG, "    Flow control pin not set.");
       }
 
-      ESP_LOGCONFIG(TAG, "  First TX byte: 0x%02X", this->tx_byte_0_);
       ESP_LOGCONFIG(TAG, "  Loop wait time: %dms", this->loop_wait_time_);
       ESP_LOGCONFIG(TAG, "  Receive wait time: %dms", this->receive_wait_time_);
+      ESP_LOGCONFIG(TAG, "  TX Byte 0: 0x%02X", this->tx_byte_0_);
       ESP_LOGCONFIG(TAG, "  Child devices: %d", this->devices_.size());
       if (this->debug_ == true)
       {
@@ -100,13 +103,6 @@ namespace esphome
           // signal flow control write mode disabled
           if (this->flow_control_pin_ != nullptr)
             this->flow_control_pin_->digital_write(false);
-
-          // update device state
-          if (this->devices_[this->last_zone_checked_index_]->write_update_pending == true)
-          {
-            ESP_LOGV(TAG, "Disabling write flag for zone %d", this->devices_[this->last_zone_checked_index_]->zone_number);
-            this->devices_[this->last_zone_checked_index_]->write_update_pending = false;
-          }
 
           // update state for last request
           this->last_request_zone_ = this->devices_[this->last_zone_checked_index_]->zone_number;
@@ -215,5 +211,7 @@ namespace esphome
         }
       }
     }
+
+
   } // namespace lgap
 } // namespace esphome

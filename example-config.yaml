@@ -1,0 +1,150 @@
+# Example ESPHome configuration for LG Air Conditioning LGAP integration
+# Based on M5Stack Atom Lite + ATOMIC RS485 Base (recommended hardware)
+
+esphome:
+  name: lg-aircon
+  friendly_name: LG Air Conditioner
+
+esp32:
+  board: m5stack-atom
+  framework:
+    type: arduino
+
+# Enable logging
+logger:
+  # Optional: Set log level to reduce verbosity
+  # level: DEBUG
+
+# Enable Home Assistant API
+api:
+  encryption:
+    # Replace with your own encryption key or generate with: openssl rand -base64 32
+    key: "REPLACE_WITH_YOUR_API_ENCRYPTION_KEY"
+
+# Enable Over-The-Air updates
+ota:
+  - platform: esphome
+    # Replace with your own OTA password
+    password: "REPLACE_WITH_YOUR_OTA_PASSWORD"
+
+# WiFi configuration
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
+  ap:
+    ssid: "LG-Aircon Fallback Hotspot"
+    password: "REPLACE_WITH_FALLBACK_PASSWORD"
+
+captive_portal:
+
+# External component - LG Air Conditioner Protocol (LGAP)
+external_components:
+  - source:
+      type: git
+      url: https://github.com/mystardious/esphome-lgap
+      ref: main
+    components: [ "lgap"]
+    refresh: 0sec
+
+# UART configuration for RS485 communication
+# Pin configuration is specific to M5Stack Atom + ATOMIC RS485 Base
+uart:
+  id: lgap_uart1
+  tx_pin:
+    number: GPIO19
+  rx_pin:
+    number: GPIO22
+  baud_rate: 4800
+  data_bits: 8
+  stop_bits: 1
+  parity: NONE
+  # Optional: Enable UART debugging (uncomment to see raw protocol data)
+  # debug:
+  #   direction: BOTH
+  #   dummy_receiver: false
+
+# Required base components for auto-generated entities
+# These are needed for the LGAP component to create sensors, controls, etc.
+sensor:
+number:
+switch:
+button:
+
+# LGAP Protocol Component
+lgap:
+  - id: lgap1
+    uart_id: lgap_uart1
+    receive_wait_time: 1000ms    # Time to wait for response (default: 500ms)
+    # loop_wait_time: 100ms      # Optional: Polling interval (default: 500ms)
+    tx_byte_0: 0x80              # Frame header byte (default: 0x80)
+
+# Climate entities - one per indoor unit zone
+climate:
+  # Example 1: Basic single zone configuration
+  - platform: lgap
+    id: lgap_zone_0
+    name: 'Living Room'
+    lgap_id: lgap1
+    zone: 0
+    # All advanced features disabled by default for clean UI
+    # Auto-generated entities include:
+    # - Pipe temperatures sensors
+    # - Error code sensor
+    # - Load monitoring sensors
+    # - Sleep timer controls
+    # - Control lock switches
+
+  # Example 2: Zone with optional features enabled
+  # - platform: lgap
+  #   id: lgap_zone_1
+  #   name: 'Bedroom'
+  #   lgap_id: lgap1
+  #   zone: 1
+  #   temperature_publish_time: 300000ms  # Temperature update interval (5 min default)
+  #   supports_auto_fan: true             # Enable "Auto" fan speed mode
+  #   supports_quiet_fan: true            # Enable "Quiet" fan speed for silent operation
+  #   supports_turbo_fan: true            # Enable "Focus/Turbo" fan speed for max power
+  #   supports_auto_swing: true           # Enable auto airflow (for ducted units)
+  #   supports_plasma: true               # Enable plasma ion air purification control
+
+  # Example 3: Additional zones (multi-zone configuration)
+  # You can control multiple indoor units from a single LGAP interface
+  # - platform: lgap
+  #   id: lgap_zone_2
+  #   name: 'Office'
+  #   lgap_id: lgap1
+  #   zone: 2
+
+  # - platform: lgap
+  #   id: lgap_zone_3
+  #   name: 'Kitchen'
+  #   lgap_id: lgap1
+  #   zone: 3
+
+# Auto-Generated Entities (per zone):
+# ===================================
+# SENSORS:
+# - Pipe In Temperature - Refrigerant inlet temperature
+# - Pipe Out Temperature - Refrigerant outlet temperature
+# - Error Code - LG service error codes (0 = OK)
+# - Zone Active Load - Real-time dynamic load (LonWorks nvoLoadEstimate)
+# - Zone Power State - ON/OFF state flag (LonWorks nvoOnOff)
+# - Zone Design Load - Fixed capacity index (LonWorks nciRatedCapacity)
+# - ODU Total Load - Total outdoor unit load across all zones
+# - Timer Remaining - Sleep timer countdown (minutes)
+#
+# CONTROLS:
+# - Sleep Timer - Number input (0-420 minutes, 0 disables)
+# - Control Lock - Master lock switch (child lock)
+# - Lock Temperature - Prevent temperature changes
+# - Lock Fan Speed - Prevent fan speed changes
+# - Lock Mode - Prevent mode changes
+# - Power Only Mode - Allow only ON/OFF, lock all other controls
+# - Plasma - Air purification control (only if supports_plasma: true)
+#
+# Temperature limits enforced by protocol:
+# - Heat mode: 16-30°C
+# - Other modes (Cool/Dry/Fan/Auto): 18-30°C
+

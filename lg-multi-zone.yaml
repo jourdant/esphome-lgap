@@ -1,0 +1,198 @@
+# Multi-Zone LG Air Conditioner Configuration
+# Based on LG Downstairs setup
+# 
+# This configuration is for 5 indoor units (IDUs) connected to one outdoor unit (ODU)
+# Each zone gets its own auto-generated entities with persistence
+
+esphome:
+  name: lg-downstairs
+  friendly_name: LG Downstairs
+
+esp32:
+  board: m5stack-atom
+  framework:
+    type: arduino
+
+# Enable logging
+logger:
+  # Optional: Reduce log verbosity for multi-zone setups
+  # level: INFO
+
+# Enable Home Assistant API
+api:
+  encryption:
+    key: "REPLACE_WITH_YOUR_API_ENCRYPTION_KEY"
+
+ota:
+  - platform: esphome
+    password: "REPLACE_WITH_YOUR_OTA_PASSWORD"
+
+# WiFi configuration
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
+  ap:
+    ssid: "Lg-Downstairs Fallback Hotspot"
+    password: "REPLACE_WITH_FALLBACK_PASSWORD"
+
+captive_portal:
+
+# External LGAP component from GitHub
+external_components:
+  - source:
+      type: git
+      url: https://github.com/mystardious/esphome-lgap
+      ref: main
+    components: [ "lgap"]
+    refresh: 0sec
+
+# UART configuration for RS485 communication
+# Pin configuration for M5Stack Atom + ATOMIC RS485 Base
+uart:
+  id: lgap_uart1
+  tx_pin:
+    number: GPIO19
+  rx_pin:
+    number: GPIO22
+  baud_rate: 4800
+  data_bits: 8
+  stop_bits: 1
+  parity: NONE
+  # Optional: Enable UART debugging
+  # debug:
+  #   direction: BOTH
+  #   dummy_receiver: false 
+
+# Required base components for auto-generated entities
+sensor:
+number:
+switch:
+button:
+
+# LGAP Protocol Component
+lgap:
+  - id: lgap1
+    uart_id: lgap_uart1
+    receive_wait_time: 250ms   # Faster response (default: 500ms)
+    loop_wait_time: 100ms      # Faster polling (default: 500ms)
+    tx_byte_0: 0x80            # Frame header byte
+
+# Climate entities - one per indoor unit zone
+# Each zone gets its own set of auto-generated entities with persistence
+climate:
+  # Zone 0 - Mohamed Ali Room (zone: 5 on ODU)
+  - platform: lgap
+    id: lg_zone_0
+    name: "Mohamed Ali Room"
+    lgap_id: lgap1
+    zone: 5
+    # Optional: Enable advanced features per zone
+    # supports_quiet_fan: true
+    # supports_turbo_fan: true
+    # supports_plasma: true
+
+  # Zone 1 - Cinema Room
+  - platform: lgap
+    id: lg_zone_1
+    name: "Cinema Room"
+    lgap_id: lgap1
+    zone: 1
+    # Optional: Cinema might benefit from quiet mode
+    # supports_quiet_fan: true
+    # supports_plasma: true
+
+  # Zone 2 - Living Room A
+  - platform: lgap
+    id: lg_zone_2
+    name: "Living Room A"
+    lgap_id: lgap1
+    zone: 2
+
+  # Zone 3 - Living Room B
+  - platform: lgap
+    id: lg_zone_3
+    name: "Living Room B"
+    lgap_id: lgap1
+    zone: 3
+
+  # Zone 4 - Hadi Room
+  - platform: lgap
+    id: lg_zone_4
+    name: "Hadi Room"
+    lgap_id: lgap1
+    zone: 4
+    # Optional: Bedroom might benefit from quiet mode
+    # supports_quiet_fan: true
+
+# ============================================================================
+# AUTO-GENERATED ENTITIES WITH PERSISTENCE (PER ZONE)
+# ============================================================================
+# The LGAP component automatically creates the following entities for EACH zone:
+#
+# With 5 zones, you get 5x of each entity type (e.g., 5 sleep timers, 5 control locks, etc.)
+#
+# NUMBERS (with restore_value: true - saves to ESP32 flash):
+# - Mohamed Ali Room Sleep Timer (0-420 minutes)
+# - Cinema Room Sleep Timer (0-420 minutes)
+# - Living Room A Sleep Timer (0-420 minutes)
+# - Living Room B Sleep Timer (0-420 minutes)
+# - Hadi Room Sleep Timer (0-420 minutes)
+#   * Each zone's timer setting persists independently
+#   * Example: Mohamed Ali Room = 60 min, Cinema Room = 30 min
+#   * All values survive reboots/power loss
+#
+# SWITCHES (with restore_mode: RESTORE_DEFAULT_OFF - saves to ESP32 flash):
+# Per zone, you get:
+# - Control Lock (master child lock)
+# - Lock Temperature
+# - Lock Fan Speed
+# - Lock Mode
+# - Power Only Mode
+# - Plasma (if enabled)
+#   * All switch states persist across reboots/power loss
+#   * Each zone's locks operate independently
+#   * Example: Lock Cinema Room temp, but leave Living Room unlocked
+#
+# SENSORS (real-time, not persisted):
+# Per zone, you get:
+# - Pipe In Temperature
+# - Pipe Out Temperature
+# - Error Code
+# - Timer Remaining
+# - Zone Active Load
+# - Zone Power State
+# - Zone Design Load
+# Plus one shared sensor:
+# - ODU Total Load (sum across all zones)
+#
+# ============================================================================
+# MULTI-ZONE PERSISTENCE EXAMPLE
+# ============================================================================
+# Set timers for different zones:
+# - Mohamed Ali Room: 60 minutes
+# - Cinema Room: 90 minutes
+# - Living Room A: 30 minutes
+# - Living Room B: 30 minutes
+# - Hadi Room: 45 minutes
+#
+# Power loss occurs → Device reboots → All timer settings preserved! ✅
+#
+# Lock Cinema Room controls but leave others unlocked:
+# - Cinema Room: Control Lock ON
+# - Other rooms: Control Lock OFF
+#
+# Power loss occurs → Device reboots → Lock states preserved! ✅
+#
+# The ESP32 saves each zone's settings to NVS flash independently.
+# On boot, it loads all values before Home Assistant connects.
+# ============================================================================
+#
+# TOTAL ENTITIES FOR 5 ZONES:
+# - 5 Climate entities
+# - 5 Sleep Timer numbers (with persistence)
+# - 25 Switch entities (5 zones × 5 switches each, with persistence)
+# - 40 Sensor entities (5 zones × 8 sensors each, + 1 shared ODU sensor)
+# ============================================================================
+

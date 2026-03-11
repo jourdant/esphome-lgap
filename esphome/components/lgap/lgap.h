@@ -2,6 +2,7 @@
 
 #include "esphome/core/component.h"
 #include "esphome/components/uart/uart.h"
+#include "esphome/components/sensor/sensor.h"
 #include <vector>
 #include "lgap_device.h"
 
@@ -34,9 +35,9 @@ namespace esphome
 
         void set_flow_control_pin(GPIOPin *flow_control_pin) { this->flow_control_pin_ = flow_control_pin; }
         void set_receive_wait_time(uint16_t time_in_ms) { this->receive_wait_time_ = time_in_ms; }
-        void set_tx_byte_0(uint8_t tx_byte_0) { this->tx_byte_0_ = tx_byte_0; }
+        void set_tx_byte_0(uint8_t byte) { this->tx_byte_0_ = byte; }
         uint8_t get_tx_byte_0() const { return this->tx_byte_0_; }
-
+        
         void register_device(LGAPDevice *device)
         {
           ESP_LOGD(TAG, "Registering device");
@@ -54,8 +55,7 @@ namespace esphome
 
         uint16_t loop_wait_time_{500};
         uint16_t receive_wait_time_{500};
-
-        uint8_t tx_byte_0_{0};
+        uint8_t tx_byte_0_{0x80};
 
         // used for keeping track of req/resp pairs
         uint8_t last_request_id_{250};
