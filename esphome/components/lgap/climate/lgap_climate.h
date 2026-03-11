@@ -30,11 +30,9 @@ namespace esphome
     {
       public:
         void set_parent(LGAPHVACClimate *parent) { this->parent_ = parent; }
-        void setup();
         void write_state(bool state) override;
       protected:
         LGAPHVACClimate *parent_{nullptr};
-        ESPPreferenceObject pref_;
     };
 
     // Lock temperature changes switch
@@ -90,11 +88,9 @@ namespace esphome
     {
       public:
         void set_parent(LGAPHVACClimate *parent) { this->parent_ = parent; }
-        void setup();
         void write_state(bool state) override;
       protected:
         LGAPHVACClimate *parent_{nullptr};
-        ESPPreferenceObject pref_;
     };
 
     class LGAPHVACClimate : public LGAPDevice, public climate::Climate
@@ -193,12 +189,16 @@ namespace esphome
         bool lock_fan_speed_{false};    // Lock fan speed changes
         bool lock_mode_{false};         // Lock mode changes
         bool power_only_mode_{false};   // Only allow ON/OFF, lock all other controls
+        bool first_state_received_{false};  // Track if we've received initial AC state
+        bool ac_confirmed_off_{false};       // True only when AC itself has reported power OFF
 
         float current_temperature_{0.0f};
         float target_temperature_{0.0f};
         
         // Timer state
         bool timer_active_{false};
+        bool timer_pending_on_boot_{false};  // Deferred timer start until first AC state
+        bool timer_turning_off_{false};      // True when the timer itself is turning the AC off
         float timer_duration_minutes_{0};  // Configured timer duration (persists)
         uint32_t timer_end_time_{0};  // millis() when timer expires
         uint32_t timer_last_update_{0};  // Last time we published remaining time

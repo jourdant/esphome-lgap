@@ -14,6 +14,7 @@ namespace esphome
       public:
         // float get_setup_priority() const override;
         bool write_update_pending{false};
+        uint8_t write_cooldown_remaining_{0};
         
         void set_parent(LGAP *parent) { parent_ = parent; }
         void set_zone_number(int zone_number) { this->zone_number = zone_number; }

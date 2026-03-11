@@ -104,13 +104,6 @@ namespace esphome
           if (this->flow_control_pin_ != nullptr)
             this->flow_control_pin_->digital_write(false);
 
-          // update device state
-          if (this->devices_[this->last_zone_checked_index_]->write_update_pending == true)
-          {
-            ESP_LOGV(TAG, "Disabling write flag for zone %d", this->devices_[this->last_zone_checked_index_]->zone_number);
-            this->devices_[this->last_zone_checked_index_]->write_update_pending = false;
-          }
-
           // update state for last request
           this->last_request_zone_ = this->devices_[this->last_zone_checked_index_]->zone_number;
           this->receive_until_time_ = millis() + this->receive_wait_time_;

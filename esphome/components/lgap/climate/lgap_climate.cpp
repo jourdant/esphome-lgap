@@ -126,30 +126,10 @@ namespace esphome
     }
 
     // Control lock switch implementation
-    void ControlLockSwitch::setup()
-    {
-      this->pref_ = global_preferences->make_preference<bool>(this->get_object_id_hash());
-      bool restored_state = false;
-      if (this->pref_.load(&restored_state))
-      {
-        ESP_LOGI("lgap", "Restored control lock state: %s", restored_state ? "ON" : "OFF");
-        this->publish_state(restored_state);
-        if (this->parent_ != nullptr)
-        {
-          this->parent_->set_control_lock(restored_state);
-        }
-      }
-      else
-      {
-        this->publish_state(false);
-      }
-    }
-
     void ControlLockSwitch::write_state(bool state)
     {
-      this->publish_state(state);
-      this->pref_.save(&state);  // Save to flash
-      
+      // Control lock is a hardware feature - just send command to AC
+      // State will be updated when AC reports back its actual state
       if (this->parent_ != nullptr)
       {
         this->parent_->set_control_lock(state);
@@ -273,29 +253,10 @@ namespace esphome
       }
     }
 
-    void PlasmaSwitch::setup()
-    {
-      this->pref_ = global_preferences->make_preference<bool>(this->get_object_id_hash());
-      bool restored_state = false;
-      if (this->pref_.load(&restored_state))
-      {
-        ESP_LOGI("lgap", "Restored plasma state: %s", restored_state ? "ON" : "OFF");
-        this->publish_state(restored_state);
-        if (this->parent_ != nullptr)
-        {
-          this->parent_->set_plasma(restored_state);
-        }
-      }
-      else
-      {
-        this->publish_state(false);
-      }
-    }
-
     void PlasmaSwitch::write_state(bool state)
     {
-      this->publish_state(state);
-      this->pref_.save(&state);
+      // Plasma is a hardware feature - just send command to AC
+      // State will be updated when AC reports back its actual state
       if (this->parent_ != nullptr)
       {
         this->parent_->set_plasma(state);
@@ -368,22 +329,21 @@ namespace esphome
       {
         this->timer_duration_number_->setup();
         
-        // If AC is already ON and timer is set, start the countdown
+        // Don't start the timer here -- the restored ESPHome mode may be stale
+        // (e.g. AC was ON before reboot but is now OFF). The timer will be started
+        // when the first actual AC state confirms the unit is ON.
         if (this->mode != climate::CLIMATE_MODE_OFF && this->timer_duration_minutes_ > 0)
         {
-          ESP_LOGI("lgap", "AC is ON after reboot, starting timer countdown: %.0f minutes", this->timer_duration_minutes_);
-          this->start_timer(this->timer_duration_minutes_);
+          ESP_LOGI("lgap", "Timer duration %.0f min restored; waiting for AC state before starting countdown", this->timer_duration_minutes_);
+          this->timer_pending_on_boot_ = true;
         }
       }
     }
 
     void LGAPHVACClimate::setup_switches()
     {
-      // Setup all switches to restore their states from flash
-      if (this->control_lock_switch_ != nullptr)
-      {
-        this->control_lock_switch_->setup();
-      }
+      // Setup software-level switches to restore their states from flash
+      // Note: Control lock and Plasma are NOT restored here - they are hardware features read from AC state
       if (this->lock_temperature_switch_ != nullptr)
       {
         this->lock_temperature_switch_->setup();
@@ -400,19 +360,12 @@ namespace esphome
       {
         this->power_only_mode_switch_->setup();
       }
-      if (this->plasma_switch_ != nullptr)
-      {
-        this->plasma_switch_->setup();
-      }
     }
 
     esphome::climate::ClimateTraits LGAPHVACClimate::traits()
     {
       auto traits = climate::ClimateTraits();
-      
-      // Add feature flags using the new ESPHome 2026 API
-      traits.add_feature_flags(climate::CLIMATE_SUPPORTS_CURRENT_TEMPERATURE);
-    
+      traits.add_feature_flags(climate::CLIMATE_SUPPORTS_CURRENT_TEMPERATURE | climate::CLIMATE_SUPPORTS_ACTION);
 
       traits.set_supported_modes({
           climate::CLIMATE_MODE_OFF,
@@ -501,8 +454,9 @@ namespace esphome
       // mode
       if (call.get_mode().has_value())
       {
-        // Check if mode changes are locked
-        if (this->lock_mode_ && this->mode != climate::CLIMATE_MODE_OFF)
+        // Check if mode changes are locked (but always allow turning OFF)
+        climate::ClimateMode requested_mode = *call.get_mode();
+        if (this->lock_mode_ && this->mode != climate::CLIMATE_MODE_OFF && requested_mode != climate::CLIMATE_MODE_OFF)
         {
           ESP_LOGW(TAG, "Mode change blocked - mode lock is active");
           return;
@@ -553,6 +507,15 @@ namespace esphome
           {
             ESP_LOGI(TAG, "AC turning ON - auto-starting sleep timer for %.0f minutes", this->timer_duration_minutes_);
             this->start_timer(this->timer_duration_minutes_);
+          }
+          
+          // Cancel timer when turning OFF via HA.
+          // (When the timer itself turns OFF the AC, timer_active_ is already false
+          // before control() is called, so this won't interfere.)
+          if (mode == climate::CLIMATE_MODE_OFF && this->timer_active_)
+          {
+            ESP_LOGI(TAG, "AC turned OFF via HA, cancelling sleep timer");
+            this->cancel_timer();
           }
         }
 
@@ -738,35 +701,12 @@ namespace esphome
         return;
 
       bool publish_update = false;
+      bool write_was_pending = this->write_update_pending;
 
       // process clean message as checksum already checked before reaching this point
       uint8_t power_state = (message[1] & 1);
       uint8_t mode = (message[6] & 7);
       
-      // Control lock state (message[1] bit2 based on protocol TX4 layout)
-      bool control_lock = (message[1] & 0x04) != 0;
-      if (control_lock != this->control_lock_)
-      {
-        this->control_lock_ = control_lock;
-        if (this->control_lock_switch_ != nullptr)
-        {
-          this->control_lock_switch_->publish_state(control_lock);
-        }
-        ESP_LOGD(TAG, "Control lock %s", control_lock ? "ENABLED" : "DISABLED");
-      }
-
-      // Plasma ion state (message[1] bit4 based on protocol TX4 layout)
-      bool plasma = (message[1] & 0x10) != 0;
-      if (plasma != this->plasma_)
-      {
-        this->plasma_ = plasma;
-        if (this->plasma_switch_ != nullptr)
-        {
-          this->plasma_switch_->publish_state(plasma);
-        }
-        ESP_LOGD(TAG, "Plasma ion %s", plasma ? "ON" : "OFF");
-      }
-
       // Error code (TX5 / message[5]) - 0 = OK, others = service codes
       uint8_t error_code = message[5];
       if (this->error_code_sensor_ != nullptr)
@@ -782,8 +722,32 @@ namespace esphome
       // Don't update control state from device while a write command is pending
       // This prevents the device's old state from overwriting the user's new command
       // But we still want to update measurement data (temp, load byte) below
-      if (!this->write_update_pending)
+      if (!this->write_update_pending && this->write_cooldown_remaining_ == 0)
       {
+        // Control lock state (message[1] bit2 based on protocol TX4 layout)
+        bool control_lock = (message[1] & 0x04) != 0;
+        if (control_lock != this->control_lock_)
+        {
+          this->control_lock_ = control_lock;
+          if (this->control_lock_switch_ != nullptr)
+          {
+            this->control_lock_switch_->publish_state(control_lock);
+          }
+          ESP_LOGD(TAG, "Control lock %s", control_lock ? "ENABLED" : "DISABLED");
+        }
+
+        // Plasma ion state (message[1] bit4 based on protocol TX4 layout)
+        bool plasma = (message[1] & 0x10) != 0;
+        if (plasma != this->plasma_)
+        {
+          this->plasma_ = plasma;
+          if (this->plasma_switch_ != nullptr)
+          {
+            this->plasma_switch_->publish_state(plasma);
+          }
+          ESP_LOGD(TAG, "Plasma ion %s", plasma ? "ON" : "OFF");
+        }
+        
         // power state and mode
         // home assistant climate treats them as a single entity
         // this logic combines them from lgap into a single entity
@@ -824,7 +788,8 @@ namespace esphome
           }
 
           // Check if mode changes should be enforced (mode lock or power-only mode)
-          if ((this->lock_mode_ || this->power_only_mode_) && mode != this->mode_ && this->power_state_ == 1)
+          // Skip lock enforcement on first message (during initialization)
+          if (this->first_state_received_ && (this->lock_mode_ || this->power_only_mode_) && mode != this->mode_ && this->power_state_ == 1)
           {
             ESP_LOGW(TAG, "Mode changed at wall controller while lock active - reverting to previous mode");
             this->write_update_pending = true;  // Force write to revert
@@ -832,7 +797,6 @@ namespace esphome
           }
           else
           {
-            // Detect if AC is turning ON (from wall panel or remote)
             bool was_off = (this->power_state_ == 0);
             bool turning_on = (power_state == 1);
             
@@ -841,13 +805,67 @@ namespace esphome
             this->mode_ = mode;
             this->power_state_ = power_state;
             
-            // Auto-start timer if AC turns ON from wall panel and timer duration is set
-            if (was_off && turning_on && this->timer_duration_minutes_ > 0)
+            // On first state after boot, start deferred timer if AC is confirmed ON
+            if (!this->first_state_received_ && this->timer_pending_on_boot_)
+            {
+              this->timer_pending_on_boot_ = false;
+              if (power_state == 1)
+              {
+                ESP_LOGI(TAG, "First AC state confirms unit is ON, starting deferred timer: %.0f minutes", this->timer_duration_minutes_);
+                this->start_timer(this->timer_duration_minutes_);
+              }
+              else
+              {
+                ESP_LOGI(TAG, "First AC state shows unit is OFF, skipping deferred timer start");
+              }
+            }
+            // After initialization, detect genuine wall panel ON events.
+            // Use ac_confirmed_off_ (AC itself reported OFF) rather than was_off
+            // (which could be set by our own control() command). This prevents
+            // false detection when HA sends OFF on boot but the AC was actually ON.
+            else if (this->first_state_received_ && this->ac_confirmed_off_ && turning_on && this->timer_duration_minutes_ > 0)
             {
               ESP_LOGI(TAG, "AC turned ON from wall panel, starting sleep timer: %.0f minutes", this->timer_duration_minutes_);
               this->start_timer(this->timer_duration_minutes_);
             }
+            
+            // Cancel timer if AC turned OFF externally (not by our timer expiry)
+            if (!was_off && power_state == 0 && this->timer_active_)
+            {
+              if (this->timer_turning_off_)
+              {
+                this->timer_turning_off_ = false;
+              }
+              else
+              {
+                ESP_LOGI(TAG, "AC turned OFF externally while timer active, cancelling timer");
+                this->cancel_timer();
+              }
+            }
           }
+        }
+
+        // Track AC-confirmed power state for wall panel detection.
+        // Updated every cycle we trust AC state (outside write cooldown),
+        // regardless of whether there was a state change above.
+        this->ac_confirmed_off_ = (power_state == 0);
+
+        // Cancel timer if AC is confirmed OFF but timer is still running.
+        // This catches cases the state-change cancel logic misses, e.g.:
+        //   - Boot: AC starts OFF, timer was restored from flash
+        //   - HA sent OFF via control() (pre-setting power_state_=0), then
+        //     AC confirms OFF with no detectable 1→0 transition
+        if (power_state == 0 && this->timer_active_)
+        {
+          ESP_LOGI(TAG, "AC confirmed OFF, cancelling orphaned sleep timer");
+          this->cancel_timer();
+        }
+
+        // Clear deferred boot timer if AC is confirmed OFF
+        if (power_state == 0 && this->timer_pending_on_boot_)
+        {
+          ESP_LOGI(TAG, "AC confirmed OFF on boot, clearing deferred timer");
+          this->timer_pending_on_boot_ = false;
         }
 
         // Auto Swing (message[6] bit 3) - for ducted units: auto airflow mode
@@ -925,11 +943,15 @@ namespace esphome
           }
 
           // Check if fan speed changes should be enforced (fan speed lock or power-only mode)
-          if ((this->lock_fan_speed_ || this->power_only_mode_) && fan_speed != this->fan_speed_)
+          // Skip lock enforcement on first message (during initialization)
+          // Only enforce while AC is ON — when OFF, keep locked value without writing
+          if (this->first_state_received_ && (this->lock_fan_speed_ || this->power_only_mode_) && fan_speed != this->fan_speed_)
           {
-            ESP_LOGW(TAG, "Fan speed changed at wall controller while lock active - reverting to previous speed");
-            this->write_update_pending = true;  // Force write to revert
-            // Don't update fan_speed_ to keep previous value
+            if (this->power_state_ == 1)
+            {
+              ESP_LOGW(TAG, "Fan speed changed at wall controller while lock active - reverting to previous speed");
+              this->write_update_pending = true;  // Force write to revert
+            }
           }
           else
           {
@@ -952,12 +974,17 @@ namespace esphome
         if (target_temperature != this->target_temperature_)
         {
           // Check if temperature changes should be enforced (temperature lock or power-only mode)
-          if (this->lock_temperature_ || this->power_only_mode_)
+          // Skip lock enforcement on first message (during initialization)
+          // Only enforce while AC is ON — when OFF, keep locked value without writing
+          if (this->first_state_received_ && (this->lock_temperature_ || this->power_only_mode_))
           {
-            ESP_LOGW(TAG, "Temperature changed at wall controller (%.0f°C→%.0f°C) while lock active - reverting", 
-                     this->target_temperature_, target_temperature);
-            this->write_update_pending = true;  // Force write to revert
-            // Don't update target_temperature_ to keep previous value
+            if (this->power_state_ == 1)
+            {
+              ESP_LOGW(TAG, "Temperature changed at wall controller (%.0f°C→%.0f°C) while lock active - reverting", 
+                       this->target_temperature_, target_temperature);
+              this->write_update_pending = true;  // Force write to revert
+            }
+            // AC is OFF: ignore difference, keep locked value without sending writes
           }
           else
           {
@@ -1044,13 +1071,6 @@ namespace esphome
       //   15: checksum
       
       // Byte 11: Zone Active Load (LonWorks: nvoLoadEstimate / nvoUnitLoad)
-      // Dynamic real-time per-zone thermal load estimate (0-255)
-      // - Typical idle: ~204
-      // - Under load: 80-220 range
-      // - LOWER value = HIGHER active IDU load (inverse relationship!)
-      // - Rises when zone is calling for cooling/heating
-      // - Falls as zone approaches setpoint
-      // - Proportional to design load but affected by temp delta & demand
       uint8_t zone_active_load = message[11];
       if (this->zone_active_load_sensor_ != nullptr)
       {
@@ -1058,11 +1078,6 @@ namespace esphome
       }
       
       // Byte 12: Zone Power State Flag (LonWorks: nvoOnOff)
-      // Simple ON/OFF state with IDU-level granularity (0-1)
-      // - 0 = RUNNING / ON
-      // - 1 = OFF / IDLE
-      // - May jitter during state transitions (ON→OFF→ON) as different boards report at different times
-      // - Multiple indoor sub-zones may share the same IDU-level ON/OFF state
       uint8_t zone_power_state = message[12];
       if (this->zone_power_state_sensor_ != nullptr)
       {
@@ -1070,11 +1085,6 @@ namespace esphome
       }
       
       // Byte 13: Zone Design Load Index (LonWorks: nciRatedCapacity)
-      // Fixed design load weight representing the rated capacity of this IDU
-      // - Does NOT change with on/off state
-      // - Proportional to duct size / airflow potential / nominal cooling capacity
-      // - Used by BMS to model expected capacity split among zones
-      // Example values: Small rooms: 9, Medium: 12, Large: 24
       uint8_t zone_design_load = message[13];
       if (this->zone_design_load_sensor_ != nullptr)
       {
@@ -1082,14 +1092,6 @@ namespace esphome
       }
       
       // Byte 14: ODU Total Load Index (LonWorks: nvoThermalLoad / nvoOduLoadFactor)
-      // ODU-level compressor load estimate (0-255)
-      // - Same value reported to all IDUs connected to the same ODU
-      // - Approximately sum of design indices (byte 13) of all ON zones, smoothed
-      // - Increases with number of active zones
-      // - Max load = sum of rated loads of connected zones
-      // - Goes to 0 when all zones are off
-      // Use (byte14 / sum_of_all_design_loads) to calculate ODU load percentage
-      // Example: All 5 downstairs zones total 78 (9+9+12+24+24), if byte14=36 → ODU at 46% load
       uint8_t odu_total_load = message[14];
       if (this->odu_total_load_sensor_ != nullptr)
       {
@@ -1099,18 +1101,77 @@ namespace esphome
       ESP_LOGD(TAG, "LonWorks Load - Active: %d, Power: %d, Design: %d, ODU: %d", 
                zone_active_load, zone_power_state, zone_design_load, odu_total_load);
 
+      // Determine climate action based on mode and temperature
+      climate::ClimateAction new_action = climate::CLIMATE_ACTION_OFF;
+      if (this->power_state_ == 1)
+      {
+        switch (this->mode_)
+        {
+          case 0: // cool
+            new_action = (this->current_temperature > this->target_temperature)
+                ? climate::CLIMATE_ACTION_COOLING
+                : climate::CLIMATE_ACTION_IDLE;
+            break;
+          case 1: // dry
+            new_action = climate::CLIMATE_ACTION_DRYING;
+            break;
+          case 2: // fan only
+            new_action = climate::CLIMATE_ACTION_FAN;
+            break;
+          case 3: // heat_cool (auto)
+            if (this->current_temperature > this->target_temperature)
+              new_action = climate::CLIMATE_ACTION_COOLING;
+            else if (this->current_temperature < this->target_temperature)
+              new_action = climate::CLIMATE_ACTION_HEATING;
+            else
+              new_action = climate::CLIMATE_ACTION_IDLE;
+            break;
+          case 4: // heat
+            new_action = (this->current_temperature < this->target_temperature)
+                ? climate::CLIMATE_ACTION_HEATING
+                : climate::CLIMATE_ACTION_IDLE;
+            break;
+          default:
+            new_action = climate::CLIMATE_ACTION_IDLE;
+            break;
+        }
+      }
+
+      if (this->action != new_action)
+      {
+        this->action = new_action;
+        publish_update = true;
+      }
+
       // send update to home assistant with all the changed variables
       if (publish_update == true)
       {
         this->publish_state();
       }
       
-      // Clear write_update_pending flag after processing response
-      // This allows the next poll cycle to read and update state normally
-      if (this->write_update_pending)
+      // After a WRITE response, start a cooldown period before trusting AC state again.
+      // The AC can be slow to apply commands, so subsequent READ responses may still
+      // report stale state for a few poll cycles.
+      // Use write_was_pending (captured at function entry) so that lock enforcement
+      // setting write_update_pending DURING this function is not prematurely cleared.
+      if (write_was_pending)
       {
-        ESP_LOGV(TAG, "Response processed, clearing write_update_pending flag");
+        ESP_LOGV(TAG, "Write response processed, starting cooldown (2 cycles)");
         this->write_update_pending = false;
+        this->write_cooldown_remaining_ = 2;
+      }
+      else if (this->write_cooldown_remaining_ > 0)
+      {
+        this->write_cooldown_remaining_--;
+        ESP_LOGV(TAG, "Write cooldown: %d cycles remaining", this->write_cooldown_remaining_);
+      }
+      
+      // Mark that we've received at least one state from the AC
+      // This enables lock enforcement (skipped on first boot to avoid false warnings)
+      if (!this->first_state_received_)
+      {
+        this->first_state_received_ = true;
+        ESP_LOGD(TAG, "First state received from AC, lock enforcement now active");
       }
     }
 
@@ -1126,6 +1187,7 @@ namespace esphome
       uint32_t duration_ms = static_cast<uint32_t>(duration_minutes * 60 * 1000);
       this->timer_end_time_ = millis() + duration_ms;
       this->timer_active_ = true;
+      this->timer_turning_off_ = false;
       this->timer_last_update_ = millis();
 
       ESP_LOGI(TAG, "Sleep timer set for %.0f minutes", duration_minutes);
@@ -1164,6 +1226,7 @@ namespace esphome
       {
         ESP_LOGI(TAG, "Sleep timer expired - turning unit OFF (duration %.0f min remains saved)", this->timer_duration_minutes_);
         this->timer_active_ = false;
+        this->timer_turning_off_ = true;
         
         // Turn off the unit
         auto call = this->make_call();
@@ -1204,6 +1267,13 @@ namespace esphome
       {
         this->control_lock_ = state;
         this->write_update_pending = true;
+        
+        // Update switch UI immediately (optimistic update)
+        if (this->control_lock_switch_ != nullptr)
+        {
+          this->control_lock_switch_->publish_state(state);
+        }
+        
         ESP_LOGI(TAG, "Control lock %s", state ? "ENABLED" : "DISABLED");
       }
     }
@@ -1250,6 +1320,13 @@ namespace esphome
       {
         this->plasma_ = state;
         this->write_update_pending = true;
+        
+        // Update switch UI immediately (optimistic update)
+        if (this->plasma_switch_ != nullptr)
+        {
+          this->plasma_switch_->publish_state(state);
+        }
+        
         ESP_LOGI(TAG, "Plasma ion %s", state ? "ON" : "OFF");
       }
     }
