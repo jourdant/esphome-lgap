@@ -38,19 +38,11 @@ namespace esphome
         void set_tx_byte_0(uint8_t byte) { this->tx_byte_0_ = byte; }
         uint8_t get_tx_byte_0() const { return this->tx_byte_0_; }
         
-        // Power estimation configuration
-        void set_cooling_max_power(float power) { this->cooling_max_power_ = power; }
-        void set_heating_max_power(float power) { this->heating_max_power_ = power; }
-        void set_power_multiplier(float multiplier) { this->power_multiplier_ = multiplier; }
-        void set_total_power_sensor(sensor::Sensor *sensor) { this->total_power_sensor_ = sensor; }
-        
         void register_device(LGAPDevice *device)
         {
           ESP_LOGD(TAG, "Registering device");
           this->devices_.push_back(device);
         }
-        
-        void calculate_and_publish_power();
 
       protected:
         void clear_rx_buffer();
@@ -78,12 +70,6 @@ namespace esphome
         std::vector<uint8_t> tx_buffer_;
 
         std::vector<LGAPDevice *> devices_{};
-        
-        // Power estimation parameters
-        float cooling_max_power_{5.86};
-        float heating_max_power_{6.19};
-        float power_multiplier_{1.0};
-        sensor::Sensor *total_power_sensor_{nullptr};
 
     };
   } // namespace lgap

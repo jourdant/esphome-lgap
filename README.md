@@ -11,6 +11,18 @@ One of the best benefits of using this integration is you can use a single LGAP 
 
 ![homeassistant](./images/ha.png)
 
+## Features
+
+- ✅ **Full Climate Control** - Native Home Assistant climate entity with standard controls
+- ✅ **Multi-Zone Support** - Control multiple zones from single ODU interface
+- ✅ **Advanced Sensors** - Pipe temperatures, load monitoring, error codes
+- ✅ **LonWorks Integration** - Compatible with LG's commercial BMS protocol fields
+- ✅ **Control Locks** - Child lock, temperature lock, fan lock, mode lock, power-only mode
+- ✅ **Sleep Timer** - Automatic shutoff timer (0-420 minutes)
+- ✅ **Wall Controller Enforcement** - Reverts unauthorized changes made at physical controller when locks active
+- ✅ **Optional Features** - Plasma ion, auto swing, quiet/turbo fan modes (opt-in per zone)
+- ✅ **Temperature Accuracy** - Corrected LG protocol formulas for accurate readings
+- ✅ **Smart Updates** - Configurable temperature update intervals, immediate first reading
 
 ## Table of Contents
 
@@ -78,18 +90,156 @@ climate:
 
 If you want to add extra zones, you can reference the same ```lgap_id``` on the climate component. It is also possible to have multiple LGAP protocol components using different UART components in the same configuration.
 
+## Advanced Features
 
-## Climate Action Inference
+The LGAP component supports many advanced features that can be optionally enabled per zone. All features are **disabled by default** for a clean, minimal interface.
 
-Home Assistant allows current action of climate devices to be reported. This shows up in the climate card as something like "Heating to 24°C" or "Idle" etc. I haven't found in the LGAP protocol whether the compressor or heating element is actively running. This component **infers** the current action based on the operating mode and temperature comparison:
+### Available Configuration Options
 
-| Mode | Reported Action |
-|------|-----------------|
-| **Off** | `OFF` |
-| **Cool** | `COOLING` if current temp > target temp, otherwise `IDLE` |
-| **Heat** | `HEATING` if current temp < target temp, otherwise `IDLE` |
-| **Heat/Cool (Auto)** | `COOLING` if current > target, `HEATING` if current < target, otherwise `IDLE` |
-| **Dry** | `DRYING` (always, when active) |
-| **Fan Only** | `FAN` (always, when active) |
+```yaml
+climate:
+  - platform: lgap
+    id: lgap_zone_cinema
+    name: 'Cinema Room'
+    lgap_id: lgap1
+    zone: 2
+    
+    # Optional: Temperature update rate (default: 300000ms / 5 minutes)
+    temperature_publish_time: 300000ms
+    
+    # Optional: Enable auto airflow mode for ducted units (default: false)
+    # Shows "Swing Set: Off or Vertical" in Home Assistant
+    supports_auto_swing: true
+    
+    # Optional: Enable auto fan speed mode (default: false)
+    # Adds "Auto" to fan speed options alongside Low/Medium/High
+    supports_auto_fan: true
+    
+    # Optional: Enable quiet/slow fan mode (default: false)
+    # Adds "Quiet" fan speed option for silent operation
+    supports_quiet_fan: true
+    
+    # Optional: Enable turbo/power fan mode (default: false)
+    # Adds "Focus" fan speed option for maximum cooling/heating
+    supports_turbo_fan: true
+    
+    # Optional: Enable plasma ion air purification control (default: false)
+    # Creates a switch entity to control plasma ion feature
+    supports_plasma: true
+```
 
-**Note:** This is an approximation. The actual compressor state may differ due to factors like defrost cycles, minimum run times, or thermostat deadbands within the unit. If you discover a byte in the LGAP protocol that indicates actual compressor status, please open an issue or PR!
+### Auto-Generated Sensors
+
+The component automatically creates the following sensors for each zone:
+
+- **Pipe In Temperature** - Refrigerant pipe inlet temperature (°C)
+- **Pipe Out Temperature** - Refrigerant pipe outlet temperature (°C)
+- **Error Code** - Service error codes (0 = OK)
+- **Zone Active Load** - Real-time dynamic load index (LonWorks `nvoLoadEstimate`)
+- **Zone Power State** - Zone on/off state flag (LonWorks `nvoOnOff`)
+- **Zone Design Load** - Fixed design capacity index (LonWorks `nciRatedCapacity`)
+- **ODU Total Load** - Total outdoor unit load across all zones (LonWorks `nvoThermalLoad`)
+
+### Auto-Generated Controls
+
+Each zone automatically includes:
+
+- **Sleep Timer** - Number input (0-420 minutes, 0 disables timer)
+- **Timer Remaining** - Countdown sensor showing minutes until auto-shutoff
+- **Control Lock** - Master lock switch (child lock)
+- **Lock Temperature** - Prevent temperature changes
+- **Lock Fan Speed** - Prevent fan speed changes
+- **Lock Mode** - Prevent mode changes
+- **Power Only Mode** - Allow only ON/OFF, lock all other controls
+- **Plasma** - Control plasma ion air purification (only if `supports_plasma: true`)
+
+### Lock Enforcement
+
+All lock switches enforce restrictions both from Home Assistant **and** from physical wall controller changes. If a user attempts to change a locked parameter at the wall controller, the system will automatically revert the change.
+
+### Temperature Limits
+
+The component enforces LG protocol temperature limits:
+- **Heat mode**: 16-30°C
+- **All other modes** (Cool/Dry/Fan/Auto): 18-30°C
+
+### Example: Full-Featured Configuration
+
+```yaml
+climate:
+  - platform: lgap
+    id: bedroom
+    name: 'Master Bedroom'
+    lgap_id: lgap1
+    zone: 3
+    supports_quiet_fan: true      # Enable quiet mode for night
+    supports_plasma: true         # Enable air purification
+    
+  - platform: lgap
+    id: living_room
+    name: 'Living Room'
+    lgap_id: lgap1
+    zone: 4
+    supports_auto_swing: true     # Ducted unit with auto airflow
+    supports_auto_fan: true       # Enable auto fan speed
+    supports_turbo_fan: true      # Enable power cooling/heating
+    supports_plasma: true         # Enable air purification
+```
+
+### Example: Minimal Configuration
+
+```yaml
+climate:
+  - platform: lgap
+    id: office
+    name: 'Home Office'
+    lgap_id: lgap1
+    zone: 5
+    # Uses defaults: Low/Medium/High fan only, no swing, no plasma
+    # Still gets all sensors and lock controls automatically
+```
+
+## Troubleshooting
+
+### Temperatures not appearing immediately in Home Assistant
+
+The component implements rate-limiting for temperature updates (default: 5 minutes) to reduce protocol overhead. However, the first reading is always published immediately. If temperatures aren't appearing:
+
+1. Check ESPHome logs for "Processing climate message" entries
+2. Verify zone number matches your LG indoor unit configuration
+3. Adjust `temperature_publish_time` if you need more frequent updates
+
+### Lock switches not preventing changes
+
+Lock enforcement works in two stages:
+1. **Home Assistant requests** are blocked immediately with a warning log
+2. **Wall controller changes** are detected and reverted automatically
+
+Check ESPHome logs for messages like "Temperature change blocked - temperature lock is active" or "Mode changed at wall controller while lock active - reverting".
+
+### Fan modes not appearing
+
+Fan modes are now opt-in:
+- **Default**: Low, Medium, High only
+- **Auto**: Requires `supports_auto_fan: true`
+- **Quiet**: Requires `supports_quiet_fan: true`
+- **Turbo/Focus**: Requires `supports_turbo_fan: true`
+
+This ensures a clean UI for units that don't support advanced fan modes.
+
+### Swing control not appearing
+
+Swing control is disabled by default. For ducted units with auto airflow capability, add:
+```yaml
+supports_auto_swing: true
+```
+
+This will add "Off" and "Vertical" swing options to Home Assistant.
+
+### Error code sensor showing non-zero value
+
+Error codes are LG service codes. Common meanings:
+- `0` = No error (normal operation)
+- Non-zero values indicate service alerts or error conditions
+
+Refer to your LG service manual for specific error code meanings, or check the ODU display panel.

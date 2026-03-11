@@ -38,7 +38,7 @@ Checksum: ```(745 % 256 ^ 85) = 97```
 
 From what I've found so far, there is a single 8 byte request message which returns a single 16 byte response message.
 
-### LGAP Request
+### LGAP Request (TX Data - Controller → AC)
 
 The request message is used to query the current state of the specified zone or Indoor Unit (IDU). For ODUs with only a single IDU connected, you will use Zone Number 0. For ODUs with multiple IDUs attached, you will need to refer to the zone number programmed into each IDU and subtract 1 due to the zones being zero indexed. There are instructions on YouTube for retrieving the Zone Number from either the wall panel or remote.
 
@@ -48,98 +48,255 @@ Format:
 
 |Byte|Bits|Description|Possible Values|
 |--|--|--|--|
-|0|```XXXX_XXXX```|Unknown|*|
-|1|```XXXX_XXXX```|Unknown|*|
-|2|```XXXX_XXXX```|Unknown|*|
-|3|```XXXX_XXXX```|Zone Number|0-255|
-|4|```0000_000X```|Power State|0: Off<br/>1: On|
-||```0000_00X0```|Request Type|0: Read<br/>1: Write|
-||```XXXX_XX00```|Unknown||
-|5|```0000_00XX```|Mode|0: Cool<br/>1: Dehumidify<br/>2: Fan<br/>3: Auto<br/>4: Heat|
-||```0000_0X00```|Unknown||
-||```0000_X000```|Swing|0: Off<br/>1: On|
-||```00XX_0000```|Fan Speed|0: Low<br/>1: Medium<br/>2: High|
-|6|```0000_XXXX```|Target Temperature|1-10**|
-|7|```XXXX_XXXX```|Checksum|0-255|
+|0 (TX0)|```XXXX_XXXX```|Frame header/length|Configurable (typically 0x10)|
+|1 (TX1)|```XXXX_XXXX```|Command type|0x00 for normal control|
+|2 (TX2)|```XXXX_XXXX```|Command ID|0xA0 for set/control frame|
+|3 (TX3)|```XXXX_XXXX```|Zone Number|0-255 (high nibble: Group, low nibble: Indoor Unit)|
+|4 (TX4)|```0000_000X```|**ON** - Power State|0: Off<br/>1: On|
+||```0000_00X0```|**EXE** - Execute/Write|0: Read only<br/>1: Write state|
+||```0000_0X00```|**Lock** - Control Lock|0: Unlocked<br/>1: Locked (child lock)|
+||```0000_X000```|Reserved|0|
+||```000X_0000```|**Plasma** - Ion Control|0: Off<br/>1: On|
+||```XXX0_0000```|Reserved|0|
+|5 (TX5)|```0000_0XXX```|**Mode**|0: Cool<br/>1: Dry/Dehumidify<br/>2: Fan Only<br/>3: Auto (status only)<br/>4: Heat|
+||```0000_X000```|**Auto Swing** (ducted)|0: Manual airflow<br/>1: Auto airflow|
+||```0XXX_0000```|**Fan Speed**|0: No change<br/>1: Low<br/>2: Medium<br/>3: High<br/>4: Auto<br/>5: Slow/Quiet (optional)<br/>6: Power/Turbo (optional)<br/>7: Slow+Power (optional)|
+||```X000_0000```|Reserved|0|
+|6 (TX6)|```0000_XXXX```|Target Temperature|1-15 (Indoor set temp = value + 15°C)<br/>Valid range: 16-30°C|
+|7 (TX7)|```XXXX_XXXX```|Checksum|(sum of TX0-TX6) XOR 0x55|
 
 <br/>
 
-_* Byte 0,1,2 - I've written a script to send every value 0-255 on each of these bytes and recorded the values that returned responses with valid checksums. This may help to figure out the important bytes/acceptable values. [Byte 0 Analysis](./ref/lgap-req-0.csv), [Byte 1 Analysis](./ref/lgap-req-1.csv), [Byte 2 Analysis](./ref/lgap-req-2.csv)_
+**Notes:**
 
-_** Byte 6 - Target Temperature is sent by taking the expected temperature and subtracting 15. The minimum temperature is 16 and maximum temperature is 30. Therefore the lowest value to send would be 1. The result would be seeing 16 degrees reflected on the wall panel._
+- **TX0 (Byte 0)**: Configurable frame header - typically 0x10 for standard data frames
+- **TX1 (Byte 1)**: Command type - 0x00 for normal read/write operations
+- **TX2 (Byte 2)**: Command ID - 0xA0 for control/set operations. This byte is echoed back in RX2 for response validation
+- **TX3 (Byte 3)**: Zone addressing - high nibble represents group number, low nibble represents indoor unit number within that group
+- **TX6 (Byte 6)**: Target temperature is sent by taking desired °C and subtracting 15. Example: 22°C → 22 - 15 = 7 (0x07)
+
+**Temperature Limits per Mode:**
+- Heat mode: 16-30°C (TX6 values: 1-15)
+- Cool/Dry/Fan/Auto modes: 18-30°C (TX6 values: 3-15)
 
 
-### LGAP Response
+### LGAP Response (RX Data - AC → Controller)
 
-So far from all requests I've sent over the interface, it has always been either 16 bytes or 0 bytes returned. If the request is invalid, 0 bytes are returned. 
-
-The values in _italics_ are possible values that I haven't proven yet.
+So far from all requests I've sent over the interface, it has always been either 16 bytes or 0 bytes returned. If the request is invalid, 0 bytes are returned.
 
 Format:
 
-|Byte|Bits|Description|Possible Values|
+|Byte|Bits|Description|Possible Values|Notes|
+|--|--|--|--|--|
+|0 (RX0)|```XXXX_XXXX```|Header/Length|0x10 (16)|Frame header|
+|1 (RX1)|```0000_000X```|**ON** - Power State|0: Off<br/>1: On||
+||```0000_00X0```|IDU Connected Status|0: Not connected<br/>1: Connected||
+||```0000_0X00```|**Lock** - Control Lock|0: Unlocked<br/>1: Locked||
+||```000X_0000```|**Plasma** - Ion Status|0: Off<br/>1: On||
+||```XXX0_X000```|Reserved/Unknown|||
+|2|```XXXX_XXXX```|Request Echo|Matches TX2 (request ID)|Used to validate response|
+|3|```XXXX_XXXX```|Unknown|||
+|4|```XXXX_XXXX```|Zone Number|0-255|Matches requested zone|
+|5 (RX5)|```XXXX_XXXX```|**Error Code**|0: No error<br/>1-255: Service codes|LG error/alarm codes|
+|6 (RX6)|```0000_0XXX```|**Mode**|0: Cool<br/>1: Dry/Dehumidify<br/>2: Fan Only<br/>3: Auto<br/>4: Heat||
+||```0000_X000```|**Swing** (Auto Airflow)|0: Manual<br/>1: Auto|For ducted units|
+||```0XXX_0000```|**Fan Speed**|0-7|See TX5 for mappings|
+||```X000_0000```|Reserved|||
+|7 (RX7)|```XXXX_XXXX```|**Target Temperature**|Raw 0-255|(value & 0x0F) + 15 = °C<br/>Valid: 16-30°C|
+|8 (RX8)|```XXXX_XXXX```|**Room Temperature**|Raw 0-255|(192 - value) / 3 = °C|
+|9 (RX9)|```XXXX_XXXX```|**Pipe In Temperature**|Raw 0-255|(192 - value) / 3 = °C|
+|10 (RX10)|```XXXX_XXXX```|**Pipe Out Temperature**|Raw 0-255|(192 - value) / 3 = °C|
+|11 (RX11)|```XXXX_XXXX```|**Zone Active Load**|0-255|Dynamic load index<br/>LonWorks `nvoLoadEstimate`<br/>204 = idle, lower = higher load|
+|12 (RX12)|```XXXX_XXXX```|**Zone Power State Flag**|0: Running<br/>1: Off/Idle|LonWorks `nvoOnOff`<br/>May jitter during transitions|
+|13 (RX13)|```XXXX_XXXX```|**Zone Design Load Index**|0-255|Fixed capacity/duct size<br/>LonWorks `nciRatedCapacity`<br/>e.g., 9, 12, 24, 36...|
+|14 (RX14)|```XXXX_XXXX```|**ODU Total Load**|0-255|System-wide load index<br/>LonWorks `nvoThermalLoad`<br/>~Sum of active zone loads|
+|15 (RX15)|```XXXX_XXXX```|Checksum|0-255|(sum of RX0-RX14) XOR 0x55|
+
+<br/>
+
+### Temperature Conversion Formulas
+
+#### Target Temperature (RX7):
+```
+Celsius = (raw_byte & 0x0F) + 15
+```
+Example: `0x17 → (0x17 & 0x0F) + 15 = 7 + 15 = 22°C`
+
+#### Room, Pipe In, Pipe Out Temperature (RX8, RX9, RX10):
+```
+Celsius = (192 - raw_byte) / 3
+```
+Example: `0x66 (102) → (192 - 102) / 3 = 30°C`
+
+### LonWorks Protocol Mapping
+
+Bytes 11-14 align perfectly with LG's LonWorks BMS integration protocol:
+
+|LGAP Byte|ESPHome Name|LonWorks Field|Purpose|
 |--|--|--|--|
-|0|```XXXX_XXXX```|_Response Length?_ or<br/>_Response Type?_|Always 16|
-|1|```0000_000X```|Power State|0: Off<br/>1: On|
-||```0000_00X0```|_IDU Connected?_|0: False<br/>1: True|
-||```XXXX_XX00```|Unknown||
-|2|```XXXX_XXXX```|Unknown|Always matches request[2]*|
-|3|```XXXX_XXXX```|Unknown||
-|4|```XXXX_XXXX```|Zone Number|0-255|
-|5|```XXXX_XXXX```|Unknown||
-|6|```0000_0XXX```|Mode|Mode|0: Cool<br/>1: Dehumidify<br/>2: Fan<br/>3: Auto<br/>4: Heat|
-||```0000_X000```|Swing|0: Off<br/>1: On|
-||```0XXX_0000```|Fan Speed|0: Low<br/>1: Medium<br/>2: High|
-||```X000_0000```|Unknown||
-|7|```0000_XXXX```|Target Temperature|0-255**|
-|8|```0000_XXXX```|Room Temperature|0-255**|
-|9|```XXXX_XXXX```|_Pipe In Temp?_ or<br/>_Target Temp Lower?_|0-255**|
-|10|```XXXX_XXXX```|_Pipe Out Temp?_ or<br/>_Target Temp Upper?_|0-255**|
-|11|```0000_0000```|Unknown||
-|12|```0000_0000```|Unknown||
-|13|```0000_0000```|Unknown||
-|14|```0000_0000```|Unknown||
-|15|```XXXX_XXXX```|Checksum|0-255|
+|11|Zone Active Load|`nvoLoadEstimate` / `nvoUnitLoad`|Dynamic real-time load per zone|
+|12|Zone Power State|`nvoOnOff`|Zone ON/OFF boolean|
+|13|Zone Design Load|`nciRatedCapacity`|Fixed design capacity weight|
+|14|ODU Total Load|`nvoThermalLoad` / `nvoOduLoadFactor`|Total compressor load|
 
-<br/>
-
-_* Byte 2 - This value so far always seems to match the byte from request[2]. Potentially this can be used as a way to validate the response for a given request?_
-
-_** Byte 6,7,8?,9? - Temperature values are calculated by taking the number and doing a bitwise AND with 0xF (15) then adding 15. Sample: ```(122 & 15) + 15 = 25 degrees celsius```._
+These bytes enable advanced energy monitoring, load balancing analysis, and compressor duty cycle tracking.
 
 
-## Unknown Values
+## Mapped Features ✅
 
-There are still plenty of values I'm not sure of. One thing that helps a lot however, is referring to the Modbus registers of the official LGAP->Modbus RTU gateway: PMBUSB00A. Appendix 1 of the [Installation Guide](https://api.library.loxone.com/downloader/file/246/LG%20PMBUSB00A%20%20Installation%20guide.pdf) has all the possible values that can be read and written through the Modbus gateway. This tells us that all these settings should be available to use through the LGAP request/response messages.
+The following features from the PMBUSB00A Modbus gateway ([Installation Guide](https://api.library.loxone.com/downloader/file/246/LG%20PMBUSB00A%20%20Installation%20guide.pdf)) have been successfully mapped and implemented:
 
-<br/>
+### Implemented in ESPHome Component
 
-### Unmapped Request Values
+|Feature|Request Byte|Response Byte|Status|
+|--|--|--|--|
+|Power State (ON/OFF)|TX4 bit0|RX1 bit0|✅ Implemented|
+|Mode (Cool/Heat/Dry/Fan/Auto)|TX5 bits 0-2|RX6 bits 0-2|✅ Implemented|
+|Fan Speed (Low/Medium/High/Auto/Quiet/Turbo)|TX5 bits 4-6|RX6 bits 4-6|✅ Implemented|
+|Target Temperature (16-30°C)|TX6|RX7|✅ Implemented|
+|Room Temperature|N/A|RX8|✅ Implemented|
+|Pipe In Temperature|N/A|RX9|✅ Implemented|
+|Pipe Out Temperature|N/A|RX10|✅ Implemented|
+|Auto Swing / Auto Airflow|TX5 bit3|RX6 bit3|✅ Implemented (optional)|
+|Control Lock (Child Lock)|TX4 bit2|RX1 bit2|✅ Implemented|
+|Plasma Ion Control|TX4 bit4|RX1 bit4|✅ Implemented (optional)|
+|Error/Alarm Code|N/A|RX5|✅ Implemented|
+|Zone Active Load (dynamic)|N/A|RX11|✅ Implemented|
+|Zone Power State Flag|N/A|RX12|✅ Implemented|
+|Zone Design Load (capacity)|N/A|RX13|✅ Implemented|
+|ODU Total Load|N/A|RX14|✅ Implemented|
 
-|Description|Possible Values|Possible Byte|
+### Advanced Lock Features (ESPHome-Specific)
+
+The ESPHome implementation includes additional lock features beyond the basic protocol:
+
+|Feature|Implementation|Status|
 |--|--|--|
-|Filter Alarm Release|0-1||
+|Lock Temperature|Software enforcement|✅ Implemented|
+|Lock Fan Speed|Software enforcement|✅ Implemented|
+|Lock Mode|Software enforcement|✅ Implemented|
+|Power Only Mode|Software enforcement|✅ Implemented|
+|Wall Controller Lock Enforcement|Automatic revert on unauthorized changes|✅ Implemented|
 
-<br/>
+### Sleep Timer (ESPHome-Specific)
 
-### Unmapped Response Values
-
-|Description|Possible Values|Possible Byte|
+|Feature|Implementation|Status|
 |--|--|--|
-|Pipe In Temperature|0-255|response[9,10]|
-|Pipe Out Temperature|0-255|response[9,10]|
-|Target Temperature Limit Lower|0-255|response[9,10]|
-|Target Temperature Limit Upper|0-255|response[9,10]|
-|Indoor Unit Connected Status|0-1|response[1]|
-|Alarm Code|0-255||
-|Alarm Activated|0-1||
-|Filter Alarm Activated|0-1||
-|Lock Remote Controller|0-1||
-|Lock Operate Mode|0-1||
-|Lock Fan Speed|0-1||
-|Lock Target Temperature|0-1||
-|Lock Indoor Unit Address|0-1||
+|Sleep Timer (0-420 minutes)|Number input + automatic shutoff|✅ Implemented|
+|Timer Remaining|Countdown sensor|✅ Implemented|
 
 <br/>
 
-If anyone would like to propose settings to investigate from this list against any of the bytes below, I'd more than welcome the help and insights!
+## Unmapped / Unknown Values
+
+The following features from the Modbus gateway specification have not yet been mapped to specific LGAP bytes:
+
+### Potentially Available but Not Yet Mapped
+
+|Description|Possible Location|Notes|
+|--|--|--|
+|Filter Alarm Release|Request (unknown byte)|Write command to clear filter alarm|
+|Filter Alarm Status|Response (unknown byte)|Read-only flag for filter maintenance|
+|Lock Indoor Unit Address|Request/Response (unknown)|Prevent zone number changes|
+|Target Temperature Limits|Response (unknown)|Min/max temperature constraints per mode|
+
+### Reserved Bits
+
+|Location|Bits|Status|
+|--|--|--|
+|TX4|bit3, bits 5-7|Reserved (always 0)|
+|TX5|bit7|Reserved (always 0)|
+|RX1|bit3, bits 5-7|Unknown/Reserved|
+|RX2|All bits|Echo of TX2, not decoded|
+|RX3|All bits|Unknown function|
+|RX6|bit7|Reserved|
+
+<br/>
+
+## Protocol Implementation Notes
+
+### Polling Strategy
+
+The ODU does not voluntarily send state updates. You must continuously poll each zone:
+
+1. Send read request (TX4 bit1 = 0) for zone
+2. Parse 16-byte response
+3. Update internal state
+4. Wait appropriate interval (recommend 1-5 seconds between zones)
+5. Repeat for next zone
+
+### Write Operations
+
+To change settings:
+
+1. Set TX4 bit1 = 1 (EXE/Write flag)
+2. Set desired state in TX4-TX6
+3. Send request
+4. Parse response to confirm new state
+5. Return to read-only mode (TX4 bit1 = 0) for subsequent polls
+
+### Multi-Zone Management
+
+For systems with multiple zones:
+- Use same LGAP interface for all zones
+- Poll each zone sequentially using TX3 (zone number)
+- Share load monitoring data (RX14 is identical across all zones on same ODU)
+- Coordinate mode changes (all zones must use same heating/cooling mode)
+
+### Temperature Conversions
+
+**Critical**: Do not use simple `(raw & 0x0F) + 15` for all temperatures!
+
+- **Target temp (RX7)**: `(raw & 0x0F) + 15` ✅
+- **Room/Pipe temps (RX8-10)**: `(192 - raw) / 3` ✅
+
+Using the wrong formula results in wildly inaccurate readings.
+
+### Lock Enforcement
+
+Protocol only supports basic control lock (TX4 bit2). Advanced lock features (temperature lock, fan lock, mode lock, power-only mode) must be implemented in software by:
+
+1. Storing previous state when lock activated
+2. Blocking HA control requests when locked
+3. Detecting unauthorized wall controller changes in RX messages
+4. Sending write command to revert to locked state
+
+### Error Handling
+
+- Invalid requests return 0 bytes (timeout)
+- Check RX5 for error codes on every response
+- Validate checksum before processing response data
+- Verify RX2 matches TX2 to confirm response correlation
+- Handle zone not found (0-byte response) gracefully
+
+### Load Monitoring Best Practices
+
+Bytes RX11-14 provide valuable load data:
+
+```python
+# Zone efficiency (0-1, where 1 = maximum load)
+zone_efficiency = (204 - rx11) / 204
+
+# Zone power consumption estimate
+zone_power_kw = zone_efficiency * zone_design_load_kw
+
+# System load percentage
+system_load_pct = (rx14 / sum_of_all_design_loads) * 100
+
+# Compressor duty cycle indicator
+compressor_active = rx14 > 0 and any(rx12 == 0)
+```
+
+## Contributing
+
+If you discover any additional mappings or can help decode the remaining unknown bytes, please contribute! The protocol is well-documented now, and any improvements will benefit all users.
+
+### How to Contribute
+
+1. Fork the repository
+2. Test new byte mappings thoroughly across multiple zones and modes
+3. Document your findings with examples and observations
+4. Submit a pull request with updated protocol.md
+5. Include sample packet captures if possible
+
+All contributions are welcome, whether it's fixing typos, improving documentation, or discovering new protocol features!
