@@ -18,9 +18,11 @@ namespace esphome
     {
       public:
         void set_parent(LGAPHVACClimate *parent) { this->parent_ = parent; }
+        void setup();  // Called by parent's setup()
         void control(float value) override;
       protected:
         LGAPHVACClimate *parent_{nullptr};
+        ESPPreferenceObject pref_;
     };
 
     // Control lock switch (child lock)
@@ -28,9 +30,11 @@ namespace esphome
     {
       public:
         void set_parent(LGAPHVACClimate *parent) { this->parent_ = parent; }
+        void setup();
         void write_state(bool state) override;
       protected:
         LGAPHVACClimate *parent_{nullptr};
+        ESPPreferenceObject pref_;
     };
 
     // Lock temperature changes switch
@@ -38,9 +42,11 @@ namespace esphome
     {
       public:
         void set_parent(LGAPHVACClimate *parent) { this->parent_ = parent; }
+        void setup();
         void write_state(bool state) override;
       protected:
         LGAPHVACClimate *parent_{nullptr};
+        ESPPreferenceObject pref_;
     };
 
     // Lock fan speed changes switch
@@ -48,9 +54,11 @@ namespace esphome
     {
       public:
         void set_parent(LGAPHVACClimate *parent) { this->parent_ = parent; }
+        void setup();
         void write_state(bool state) override;
       protected:
         LGAPHVACClimate *parent_{nullptr};
+        ESPPreferenceObject pref_;
     };
 
     // Lock mode changes switch
@@ -58,9 +66,11 @@ namespace esphome
     {
       public:
         void set_parent(LGAPHVACClimate *parent) { this->parent_ = parent; }
+        void setup();
         void write_state(bool state) override;
       protected:
         LGAPHVACClimate *parent_{nullptr};
+        ESPPreferenceObject pref_;
     };
 
     // Power only mode switch (allow only ON/OFF, lock all other controls)
@@ -68,9 +78,11 @@ namespace esphome
     {
       public:
         void set_parent(LGAPHVACClimate *parent) { this->parent_ = parent; }
+        void setup();
         void write_state(bool state) override;
       protected:
         LGAPHVACClimate *parent_{nullptr};
+        ESPPreferenceObject pref_;
     };
 
     // Plasma ion switch (air purification feature)
@@ -78,9 +90,11 @@ namespace esphome
     {
       public:
         void set_parent(LGAPHVACClimate *parent) { this->parent_ = parent; }
+        void setup();
         void write_state(bool state) override;
       protected:
         LGAPHVACClimate *parent_{nullptr};
+        ESPPreferenceObject pref_;
     };
 
     class LGAPHVACClimate : public LGAPDevice, public climate::Climate
@@ -88,6 +102,8 @@ namespace esphome
       public:
         void dump_config() override;       
         void setup() override;
+        void setup_timer_number();  // Setup timer persistence
+        void setup_switches();  // Setup switch persistence
         void set_temperature_publish_time(int temperature_publish_time) { this->temperature_publish_time_ = temperature_publish_time; }
         void set_supports_auto_swing(bool supports) { this->supports_auto_swing_ = supports; }
         void set_supports_auto_fan(bool supports) { this->supports_auto_fan_ = supports; }

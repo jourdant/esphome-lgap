@@ -74,9 +74,38 @@ namespace esphome
     static const char *const TAG = "lgap.climate";
 
     // Timer duration number implementation with automatic start/cancel
+    void TimerDurationNumber::setup()
+    {
+      // Restore timer duration from flash on boot
+      this->pref_ = global_preferences->make_preference<float>(this->get_object_id_hash());
+      
+      float restored_value;
+      if (this->pref_.load(&restored_value))
+      {
+        // Successfully restored from flash
+        ESP_LOGI("lgap", "Restored timer duration: %.0f minutes", restored_value);
+        this->publish_state(restored_value);
+        
+        // Update parent's timer duration (but don't start timer yet)
+        if (this->parent_ != nullptr)
+        {
+          this->parent_->set_timer_duration_minutes(restored_value);
+        }
+      }
+      else
+      {
+        // No saved value, use default (0 = disabled)
+        ESP_LOGD("lgap", "No saved timer duration, starting with 0");
+        this->publish_state(0);
+      }
+    }
+    
     void TimerDurationNumber::control(float value)
     {
       this->publish_state(value);
+      
+      // Save the new value to flash for persistence
+      this->pref_.save(&value);
       
       if (this->parent_ != nullptr)
       {
@@ -97,9 +126,29 @@ namespace esphome
     }
 
     // Control lock switch implementation
+    void ControlLockSwitch::setup()
+    {
+      this->pref_ = global_preferences->make_preference<bool>(this->get_object_id_hash());
+      bool restored_state = false;
+      if (this->pref_.load(&restored_state))
+      {
+        ESP_LOGI("lgap", "Restored control lock state: %s", restored_state ? "ON" : "OFF");
+        this->publish_state(restored_state);
+        if (this->parent_ != nullptr)
+        {
+          this->parent_->set_control_lock(restored_state);
+        }
+      }
+      else
+      {
+        this->publish_state(false);
+      }
+    }
+
     void ControlLockSwitch::write_state(bool state)
     {
       this->publish_state(state);
+      this->pref_.save(&state);  // Save to flash
       
       if (this->parent_ != nullptr)
       {
@@ -108,45 +157,145 @@ namespace esphome
     }
 
     // Function restriction switch implementations
+    void LockTemperatureSwitch::setup()
+    {
+      this->pref_ = global_preferences->make_preference<bool>(this->get_object_id_hash());
+      bool restored_state = false;
+      if (this->pref_.load(&restored_state))
+      {
+        ESP_LOGI("lgap", "Restored lock temperature state: %s", restored_state ? "ON" : "OFF");
+        this->publish_state(restored_state);
+        if (this->parent_ != nullptr)
+        {
+          this->parent_->set_lock_temperature(restored_state);
+        }
+      }
+      else
+      {
+        this->publish_state(false);
+      }
+    }
+
     void LockTemperatureSwitch::write_state(bool state)
     {
       this->publish_state(state);
+      this->pref_.save(&state);
       if (this->parent_ != nullptr)
       {
         this->parent_->set_lock_temperature(state);
       }
     }
 
+    void LockFanSpeedSwitch::setup()
+    {
+      this->pref_ = global_preferences->make_preference<bool>(this->get_object_id_hash());
+      bool restored_state = false;
+      if (this->pref_.load(&restored_state))
+      {
+        ESP_LOGI("lgap", "Restored lock fan speed state: %s", restored_state ? "ON" : "OFF");
+        this->publish_state(restored_state);
+        if (this->parent_ != nullptr)
+        {
+          this->parent_->set_lock_fan_speed(restored_state);
+        }
+      }
+      else
+      {
+        this->publish_state(false);
+      }
+    }
+
     void LockFanSpeedSwitch::write_state(bool state)
     {
       this->publish_state(state);
+      this->pref_.save(&state);
       if (this->parent_ != nullptr)
       {
         this->parent_->set_lock_fan_speed(state);
       }
     }
 
+    void LockModeSwitch::setup()
+    {
+      this->pref_ = global_preferences->make_preference<bool>(this->get_object_id_hash());
+      bool restored_state = false;
+      if (this->pref_.load(&restored_state))
+      {
+        ESP_LOGI("lgap", "Restored lock mode state: %s", restored_state ? "ON" : "OFF");
+        this->publish_state(restored_state);
+        if (this->parent_ != nullptr)
+        {
+          this->parent_->set_lock_mode(restored_state);
+        }
+      }
+      else
+      {
+        this->publish_state(false);
+      }
+    }
+
     void LockModeSwitch::write_state(bool state)
     {
       this->publish_state(state);
+      this->pref_.save(&state);
       if (this->parent_ != nullptr)
       {
         this->parent_->set_lock_mode(state);
       }
     }
 
+    void PowerOnlyModeSwitch::setup()
+    {
+      this->pref_ = global_preferences->make_preference<bool>(this->get_object_id_hash());
+      bool restored_state = false;
+      if (this->pref_.load(&restored_state))
+      {
+        ESP_LOGI("lgap", "Restored power only mode state: %s", restored_state ? "ON" : "OFF");
+        this->publish_state(restored_state);
+        if (this->parent_ != nullptr)
+        {
+          this->parent_->set_power_only_mode(restored_state);
+        }
+      }
+      else
+      {
+        this->publish_state(false);
+      }
+    }
+
     void PowerOnlyModeSwitch::write_state(bool state)
     {
       this->publish_state(state);
+      this->pref_.save(&state);
       if (this->parent_ != nullptr)
       {
         this->parent_->set_power_only_mode(state);
       }
     }
 
+    void PlasmaSwitch::setup()
+    {
+      this->pref_ = global_preferences->make_preference<bool>(this->get_object_id_hash());
+      bool restored_state = false;
+      if (this->pref_.load(&restored_state))
+      {
+        ESP_LOGI("lgap", "Restored plasma state: %s", restored_state ? "ON" : "OFF");
+        this->publish_state(restored_state);
+        if (this->parent_ != nullptr)
+        {
+          this->parent_->set_plasma(restored_state);
+        }
+      }
+      else
+      {
+        this->publish_state(false);
+      }
+    }
+
     void PlasmaSwitch::write_state(bool state)
     {
       this->publish_state(state);
+      this->pref_.save(&state);
       if (this->parent_ != nullptr)
       {
         this->parent_->set_plasma(state);
@@ -204,15 +353,66 @@ namespace esphome
       }
 
       // todo: initialise the current temp too
+      
+      // Setup timer number persistence
+      this->setup_timer_number();
+      
+      // Setup switch persistence
+      this->setup_switches();
+    }
+
+    void LGAPHVACClimate::setup_timer_number()
+    {
+      // Call setup on the timer number to restore persistence
+      if (this->timer_duration_number_ != nullptr)
+      {
+        this->timer_duration_number_->setup();
+        
+        // If AC is already ON and timer is set, start the countdown
+        if (this->mode != climate::CLIMATE_MODE_OFF && this->timer_duration_minutes_ > 0)
+        {
+          ESP_LOGI("lgap", "AC is ON after reboot, starting timer countdown: %.0f minutes", this->timer_duration_minutes_);
+          this->start_timer(this->timer_duration_minutes_);
+        }
+      }
+    }
+
+    void LGAPHVACClimate::setup_switches()
+    {
+      // Setup all switches to restore their states from flash
+      if (this->control_lock_switch_ != nullptr)
+      {
+        this->control_lock_switch_->setup();
+      }
+      if (this->lock_temperature_switch_ != nullptr)
+      {
+        this->lock_temperature_switch_->setup();
+      }
+      if (this->lock_fan_speed_switch_ != nullptr)
+      {
+        this->lock_fan_speed_switch_->setup();
+      }
+      if (this->lock_mode_switch_ != nullptr)
+      {
+        this->lock_mode_switch_->setup();
+      }
+      if (this->power_only_mode_switch_ != nullptr)
+      {
+        this->power_only_mode_switch_->setup();
+      }
+      if (this->plasma_switch_ != nullptr)
+      {
+        this->plasma_switch_->setup();
+      }
     }
 
     esphome::climate::ClimateTraits LGAPHVACClimate::traits()
     {
       auto traits = climate::ClimateTraits();
-      traits.set_supports_current_temperature(true);
-      traits.set_supports_two_point_target_temperature(false);
-      traits.set_supports_current_humidity(false);
-      traits.set_supports_target_humidity(false);
+      
+      // Add feature flags using the new ESPHome 2026 API
+      traits.add_feature_flags(climate::CLIMATE_SUPPORTS_CURRENT_TEMPERATURE);
+    
 
       traits.set_supported_modes({
           climate::CLIMATE_MODE_OFF,
@@ -223,28 +423,24 @@ namespace esphome
           climate::CLIMATE_MODE_HEAT_COOL,
       });
 
-      // Build fan modes list - always include basic manual modes
-      std::set<climate::ClimateFanMode> fan_modes = {
-          climate::CLIMATE_FAN_LOW,
-          climate::CLIMATE_FAN_MEDIUM,
-          climate::CLIMATE_FAN_HIGH,
-      };
+      // Build fan modes - always include basic manual modes
+      traits.add_supported_fan_mode(climate::CLIMATE_FAN_LOW);
+      traits.add_supported_fan_mode(climate::CLIMATE_FAN_MEDIUM);
+      traits.add_supported_fan_mode(climate::CLIMATE_FAN_HIGH);
       
       // Add optional fan modes if explicitly enabled
       if (this->supports_auto_fan_)
       {
-        fan_modes.insert(climate::CLIMATE_FAN_AUTO);
+        traits.add_supported_fan_mode(climate::CLIMATE_FAN_AUTO);
       }
       if (this->supports_quiet_fan_)
       {
-        fan_modes.insert(climate::CLIMATE_FAN_QUIET);  // SLOW mode
+        traits.add_supported_fan_mode(climate::CLIMATE_FAN_QUIET);  // SLOW mode
       }
       if (this->supports_turbo_fan_)
       {
-        fan_modes.insert(climate::CLIMATE_FAN_FOCUS);  // TURBO/POWER mode
+        traits.add_supported_fan_mode(climate::CLIMATE_FAN_FOCUS);  // TURBO/POWER mode
       }
-      
-      traits.set_supported_fan_modes(fan_modes);
 
       // Auto swing (auto airflow) - optional feature for ducted units
       // Only expose swing control if explicitly enabled in YAML
@@ -488,11 +684,10 @@ namespace esphome
           temp = max_temp;
         }
         
-        if (temp != this->target_temperature_)
-        {
-          this->target_temperature_ = temp;
-          this->target_temperature = temp;
-        }
+        // Always update both values to ensure UI stays in sync
+        // Critical: This prevents race condition where repeated clamped values don't trigger updates
+        this->target_temperature_ = temp;
+        this->target_temperature = temp;
 
         this->write_update_pending = true;
         this->publish_state();
@@ -637,10 +832,21 @@ namespace esphome
           }
           else
           {
+            // Detect if AC is turning ON (from wall panel or remote)
+            bool was_off = (this->power_state_ == 0);
+            bool turning_on = (power_state == 1);
+            
             // update state
             publish_update = true;
             this->mode_ = mode;
             this->power_state_ = power_state;
+            
+            // Auto-start timer if AC turns ON from wall panel and timer duration is set
+            if (was_off && turning_on && this->timer_duration_minutes_ > 0)
+            {
+              ESP_LOGI(TAG, "AC turned ON from wall panel, starting sleep timer: %.0f minutes", this->timer_duration_minutes_);
+              this->start_timer(this->timer_duration_minutes_);
+            }
           }
         }
 
@@ -897,6 +1103,14 @@ namespace esphome
       if (publish_update == true)
       {
         this->publish_state();
+      }
+      
+      // Clear write_update_pending flag after processing response
+      // This allows the next poll cycle to read and update state normally
+      if (this->write_update_pending)
+      {
+        ESP_LOGV(TAG, "Response processed, clearing write_update_pending flag");
+        this->write_update_pending = false;
       }
     }
 

@@ -4,6 +4,7 @@ from esphome.components import climate, sensor, number, switch
 from esphome.const import (
     CONF_ID,
     CONF_NAME,
+    CONF_MODE,
     UNIT_CELSIUS,
     UNIT_MINUTE,
     DEVICE_CLASS_TEMPERATURE,
@@ -284,7 +285,9 @@ async def to_code(config):
     # Automatic timer: set minutes to start, set to 0 to cancel
     if CONF_SLEEP_TIMER in config:
         num = cg.new_Pvariable(config[CONF_SLEEP_TIMER][CONF_ID])
+        await cg.register_component(num, config[CONF_SLEEP_TIMER])  # Register as component for setup()
         await number.register_number(num, config[CONF_SLEEP_TIMER], min_value=0, max_value=420, step=1)
+        cg.add(num.set_parent(var))
         cg.add(var.set_timer_duration_number(num))
     else:
         from esphome.core import ID
@@ -304,11 +307,15 @@ async def to_code(config):
         )({
             CONF_ID: num_id,
             CONF_NAME: num_name,
+            "entity_category": "config",  # Mark as configuration entity
         })
         
         num = cg.new_Pvariable(num_id)
         await number.register_number(num, num_config, min_value=0, max_value=420, step=1)
+        cg.add(num.set_parent(var))
         cg.add(var.set_timer_duration_number(num))
+        # Manually call setup() from the parent's setup()
+        cg.add(var.setup_timer_number())
     
     # Timer remaining sensor (shows countdown)
     if CONF_TIMER_REMAINING in config:
@@ -357,6 +364,8 @@ async def to_code(config):
         sw_config = switch.switch_schema(ControlLockSwitch)({
             CONF_ID: sw_id,
             CONF_NAME: sw_name,
+            "restore_mode": "RESTORE_DEFAULT_OFF",  # Persist control lock state
+            "entity_category": "config",  # Mark as configuration entity
         })
         
         sw = cg.new_Pvariable(sw_id)
@@ -390,6 +399,8 @@ async def to_code(config):
             sw_config = switch.switch_schema(switch_class)({
                 CONF_ID: sw_id,
                 CONF_NAME: sw_name,
+                "restore_mode": "RESTORE_DEFAULT_OFF",  # Persist lock states across reboots
+                "entity_category": "config",  # Mark as configuration entity
             })
             
             sw = cg.new_Pvariable(sw_id)
@@ -416,6 +427,8 @@ async def to_code(config):
             sw_config = switch.switch_schema(PlasmaSwitch)({
                 CONF_ID: sw_id,
                 CONF_NAME: sw_name,
+                "restore_mode": "RESTORE_DEFAULT_OFF",  # Persist plasma state
+                "entity_category": "config",  # Mark as configuration entity
             })
             
             sw = cg.new_Pvariable(sw_id)

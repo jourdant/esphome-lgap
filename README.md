@@ -114,7 +114,12 @@ You can also in theory wire this same configuration to an older generation LG OD
 
 ### 3. Esphome manifest
 
-I am making the assumption that you're also using the M5Stack devices as listed above, here is some sample yaml you can add to an existing yaml config:
+I am making the assumption that you're also using the M5Stack devices as listed above, here is some sample yaml you can add to an existing yaml config.
+
+> **💡 TIP:** Ready-to-use configuration examples:
+> - **Single Zone**: [lg-single-zone.yaml](./lg-single-zone.yaml) - One indoor unit
+> - **Multi Zone**: [lg-multi-zone.yaml](./lg-multi-zone.yaml) - Multiple indoor units (5 zones example)
+> - **General Template**: [example-config.yaml](./example-config.yaml) - Detailed configuration reference
 
 ```yaml
 external_components:
@@ -145,9 +150,9 @@ button:
 lgap:
   - id: lgap1
     uart_id: lgap_uart1
-    receive_wait_time: 250ms   # Faster response (default: 500ms)
-    loop_wait_time: 100ms      # Faster polling (default: 500ms)
-    tx_byte_0: 0x80            # Frame header byte
+    receive_wait_time: 250ms   # Response timeout (default: 500ms, increase to 1000ms if unreliable)
+    loop_wait_time: 100ms      # Polling interval (default: 500ms, reduce for faster updates)
+    tx_byte_0: 0x80            # Frame header byte (default: 0x80)
 
 climate:
   - platform: lgap
@@ -180,6 +185,13 @@ climate:
     lgap_id: lgap1
     zone: 4
 ```
+
+**Timing Configuration Notes:**
+- If you experience communication issues or timeouts, try increasing `receive_wait_time` to `1000ms`
+- The `loop_wait_time` can be adjusted based on your needs:
+  - Lower values (50-100ms) = faster updates, more protocol traffic
+  - Higher values (500-1000ms) = slower updates, reduced load
+- Most setups work well with the defaults shown above
 
 If you want to add extra zones, you can reference the same ```lgap_id``` on the climate component. It is also possible to have multiple LGAP protocol components using different UART components in the same configuration.
 
@@ -336,3 +348,18 @@ Error codes are LG service codes. Common meanings:
 - Non-zero values indicate service alerts or error conditions
 
 Refer to your LG service manual for specific error code meanings, or check the ODU display panel.
+
+## Climate Action Inference
+
+Home Assistant allows current action of climate devices to be reported. This shows up in the climate card as something like "Heating to 24°C" or "Idle" etc. I haven't found in the LGAP protocol whether the compressor or heating element is actively running. This component **infers** the current action based on the operating mode and temperature comparison:
+
+| Mode | Reported Action |
+|------|-----------------|
+| **Off** | `OFF` |
+| **Cool** | `COOLING` if current temp > target temp, otherwise `IDLE` |
+| **Heat** | `HEATING` if current temp < target temp, otherwise `IDLE` |
+| **Heat/Cool (Auto)** | `COOLING` if current > target, `HEATING` if current < target, otherwise `IDLE` |
+| **Dry** | `DRYING` (always, when active) |
+| **Fan Only** | `FAN` (always, when active) |
+
+**Note:** This is an approximation. The actual compressor state may differ due to factors like defrost cycles, minimum run times, or thermostat deadbands within the unit. If you discover a byte in the LGAP protocol that indicates actual compressor status, please open an issue or PR!

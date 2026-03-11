@@ -1,0 +1,142 @@
+# Single Zone LG Air Conditioner Configuration
+# Based on LG Upstairs setup
+# 
+# This configuration is for a single indoor unit (IDU) connected to one outdoor unit (ODU)
+# Auto-generated entities include sleep timer, lock switches, and sensors - all with persistence
+
+esphome:
+  name: lg-upstairs
+  friendly_name: LG Upstairs
+
+esp32:
+  board: m5stack-atom
+  framework:
+    type: arduino
+
+# Enable logging
+logger:
+  # Optional: Reduce log verbosity
+  # level: INFO
+
+# Enable Home Assistant API
+api:
+  encryption:
+    key: "REPLACE_WITH_YOUR_API_ENCRYPTION_KEY"
+
+ota:
+  - platform: esphome
+    password: "REPLACE_WITH_YOUR_OTA_PASSWORD"
+
+# WiFi configuration
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
+  ap:
+    ssid: "Lg-Upstairs Fallback Hotspot"
+    password: "k51dPTYQiklQ"
+
+captive_portal:
+
+# External LGAP component from GitHub
+external_components:
+  - source:
+      type: git
+      url: https://github.com/mystardious/esphome-lgap
+      ref: main
+    components: [ "lgap"]
+    refresh: 0sec
+
+# UART configuration for RS485 communication
+# Pin configuration for M5Stack Atom + ATOMIC RS485 Base
+uart:
+  id: lgap_uart1
+  tx_pin:
+    number: GPIO19
+  rx_pin:
+    number: GPIO22
+  baud_rate: 4800
+  data_bits: 8
+  stop_bits: 1
+  parity: NONE
+  # Optional: Enable UART debugging
+  # debug:
+  #   direction: BOTH
+  #   dummy_receiver: false
+    
+# Required base components for auto-generated entities
+sensor:
+number:
+switch:
+button:
+
+# LGAP Protocol Component
+lgap:
+  - id: lgap1
+    uart_id: lgap_uart1
+    receive_wait_time: 1000ms  # Response timeout (increase if communication is unreliable)
+    # loop_wait_time: 100ms    # Optional: Polling interval (default: 500ms)
+    tx_byte_0: 0x80            # Frame header byte
+
+# Climate entity for single zone
+climate:
+  - platform: lgap
+    id: lgap_zone_1
+    name: 'Upstairs'
+    lgap_id: lgap1
+    zone: 0
+    
+    # Optional features (all disabled by default)
+    # temperature_publish_time: 300000ms  # Temperature update interval (5 min default)
+    # supports_auto_fan: true             # Enable "Auto" fan speed mode
+    # supports_quiet_fan: true            # Enable "Quiet" fan speed for silent operation
+    # supports_turbo_fan: true            # Enable "Focus/Turbo" fan speed for max power
+    # supports_auto_swing: true           # Enable auto airflow (for ducted units)
+    # supports_plasma: true               # Enable plasma ion air purification control
+
+# ============================================================================
+# AUTO-GENERATED ENTITIES WITH PERSISTENCE
+# ============================================================================
+# The LGAP component automatically creates the following entities for each zone:
+#
+# NUMBERS (with restore_value: true - saves to ESP32 flash):
+# - Sleep Timer (0-420 minutes)
+#   * Set timer duration (e.g., 60 minutes)
+#   * Value persists across reboots/power loss
+#   * Reboot resets countdown, but duration setting is preserved
+#
+# SWITCHES (with restore_mode: RESTORE_DEFAULT_OFF - saves to ESP32 flash):
+# - Control Lock (master child lock)
+# - Lock Temperature (prevent temperature changes)
+# - Lock Fan Speed (prevent fan speed changes)
+# - Lock Mode (prevent mode changes)
+# - Power Only Mode (allow only ON/OFF)
+# - Plasma (only if supports_plasma: true)
+#   * All switch states persist across reboots/power loss
+#   * Restore to last state, or default to OFF if no previous state
+#
+# SENSORS (real-time, not persisted):
+# - Pipe In Temperature (refrigerant inlet temp)
+# - Pipe Out Temperature (refrigerant outlet temp)
+# - Error Code (LG service codes, 0 = OK)
+# - Timer Remaining (countdown display)
+# - Zone Active Load (LonWorks nvoLoadEstimate)
+# - Zone Power State (LonWorks nvoOnOff)
+# - Zone Design Load (LonWorks nciRatedCapacity)
+# - ODU Total Load (system-wide load)
+#
+# ============================================================================
+# PERSISTENCE BEHAVIOR
+# ============================================================================
+# Example: Set Sleep Timer = 60 minutes
+# 1. Value saved to ESP32 NVS flash automatically
+# 2. Power loss occurs
+# 3. Device reboots
+# 4. Sleep Timer still shows 60 minutes ✅
+# 5. Once connected to Home Assistant, state syncs to dashboard
+#
+# The ESP32 doesn't wait for Home Assistant - it loads values from its own
+# flash memory during boot, then reports the current state when HA connects.
+# ============================================================================
+

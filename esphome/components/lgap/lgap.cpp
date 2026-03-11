@@ -20,11 +20,13 @@ namespace esphome
       ESP_LOGCONFIG(TAG, "  Flow Control Pin:");
       if (this->flow_control_pin_ != nullptr)
       {
-        this->flow_control_pin_->dump_summary();
+        char buffer[64];
+        this->flow_control_pin_->dump_summary(buffer, sizeof(buffer));
+        ESP_LOGCONFIG(TAG, "    %s", buffer);
       }
       else
       {
-        ESP_LOGCONFIG(TAG, "Flow control pin not set.");
+        ESP_LOGCONFIG(TAG, "    Flow control pin not set.");
       }
 
       ESP_LOGCONFIG(TAG, "  Loop wait time: %dms", this->loop_wait_time_);
