@@ -10,8 +10,16 @@ namespace esphome
   {
 
     static const char *const TAG = "lgap.climate";
-    static const uint8_t MIN_TEMPERATURE = 16;
-    static const uint8_t MAX_TEMPERATURE = 36;
+    static const uint8_t MIN_TEMPERATURE = 16;  // Minimum is 16°C for heat mode
+    static const uint8_t MIN_TEMPERATURE_NON_HEAT = 18;  // 18°C minimum for cool/dry/fan/auto modes
+    static const uint8_t MAX_TEMPERATURE = 30;  // Maximum is 30°C for all modes
+
+    // Approximate LG pipe temperature mapping in °C.
+    // This is consistent with the room-sensor mapping and gives realistic values.
+    // Same formula as room temp: Temp(°C) = (192 - raw) / 3
+    inline float lgap_raw_to_pipe_temp(uint8_t raw) {
+      return float(192 - raw) / 3.0f;
+    }
 
     void LGAPHVACClimate::dump_config()
     {
@@ -58,7 +66,10 @@ namespace esphome
     esphome::climate::ClimateTraits LGAPHVACClimate::traits()
     {
       auto traits = climate::ClimateTraits();
-      traits.add_feature_flags(climate::CLIMATE_SUPPORTS_CURRENT_TEMPERATURE | climate::CLIMATE_SUPPORTS_ACTION);
+      traits.set_supports_current_temperature(true);
+      traits.set_supports_two_point_target_temperature(false);
+      traits.set_supports_current_humidity(false);
+      traits.set_supports_target_humidity(false);
 
       traits.set_supported_modes({
           climate::CLIMATE_MODE_OFF,
@@ -80,7 +91,10 @@ namespace esphome
           climate::CLIMATE_SWING_VERTICAL,
       });
 
-      // todo: validate these min/max numbers
+      // Temperature limits per LG specification:
+      // Heat mode: 16-30°C, all other modes: 18-30°C
+      // ESPHome traits don't support mode-specific ranges, so we show 16-30°C
+      // and enforce the 18°C minimum for non-heat modes in control()
       traits.set_visual_min_temperature(MIN_TEMPERATURE);
       traits.set_visual_max_temperature(MAX_TEMPERATURE);
       traits.set_visual_temperature_step(1);
@@ -202,6 +216,24 @@ namespace esphome
         // TODO: enable precision decimals as a yaml setting
         ESP_LOGD(TAG, "Temperature change requested");
         float temp = *call.get_target_temperature();
+        
+        // Apply mode-specific temperature limits
+        // Heat mode: 16-30°C, all other modes: 18-30°C
+        float min_temp = (this->mode == climate::CLIMATE_MODE_HEAT) ? MIN_TEMPERATURE : MIN_TEMPERATURE_NON_HEAT;
+        float max_temp = MAX_TEMPERATURE;
+        
+        // Clamp temperature to valid range
+        if (temp < min_temp)
+        {
+          ESP_LOGW(TAG, "Requested temperature %.1f°C is below minimum %.1f°C for current mode, clamping", temp, min_temp);
+          temp = min_temp;
+        }
+        else if (temp > max_temp)
+        {
+          ESP_LOGW(TAG, "Requested temperature %.1f°C is above maximum %.1f°C, clamping", temp, max_temp);
+          temp = max_temp;
+        }
+        
         if (temp != this->target_temperature_)
         {
           this->target_temperature_ = temp;
@@ -221,10 +253,10 @@ namespace esphome
       int write_state = this->write_update_pending ? 2 : 0;
 
       // build payload in message buffer
-      message.push_back(this->parent_->get_tx_byte_0());
-      message.push_back(0);
-      message.push_back(request_id);
-      message.push_back(this->zone_number);
+      message.push_back(this->parent_->get_tx_byte_0());  // Byte 0 - configurable
+      message.push_back(0);                                // Byte 1 - always 0
+      message.push_back(request_id);                       // Byte 2 - request ID
+      message.push_back(this->zone_number);                // Byte 3 - zone number
       message.push_back(write_state | this->power_state_);
       message.push_back(this->mode_ | (this->swing_ << 3) | (this->fan_speed_ << 4));
       message.push_back((uint8_t)(this->target_temperature_ - 15));
@@ -251,120 +283,143 @@ namespace esphome
       uint8_t power_state = (message[1] & 1);
       uint8_t mode = (message[6] & 7);
 
-      // power state and mode
-      // home assistant climate treats them as a single entity
-      // this logic combines them from lgap into a single entity
-      if (power_state != this->power_state_ || mode != this->mode_)
+      // Don't update control state from device while a write command is pending
+      // This prevents the device's old state from overwriting the user's new command
+      // But we still want to update measurement data (temp, load byte) below
+      if (!this->write_update_pending)
       {
-        // handle mode
-        if (mode == 0)
+        // power state and mode
+        // home assistant climate treats them as a single entity
+        // this logic combines them from lgap into a single entity
+        if (power_state != this->power_state_ || mode != this->mode_)
         {
-          this->mode = climate::CLIMATE_MODE_COOL;
-        }
-        else if (mode == 1)
-        {
-          this->mode = climate::CLIMATE_MODE_DRY;
-        }
-        else if (mode == 2)
-        {
-          this->mode = climate::CLIMATE_MODE_FAN_ONLY;
-        }
-        else if (mode == 3)
-        {
-          // heat/cool is essentially auto
-          this->mode = climate::CLIMATE_MODE_HEAT_COOL;
-        }
-        else if (mode == 4)
-        {
-          this->mode = climate::CLIMATE_MODE_HEAT;
-        }
-        else
-        {
-          ESP_LOGE(TAG, "Invalid mode received: %d", mode);
-          this->mode = climate::CLIMATE_MODE_OFF;
+          // handle mode
+          if (mode == 0)
+          {
+            this->mode = climate::CLIMATE_MODE_COOL;
+          }
+          else if (mode == 1)
+          {
+            this->mode = climate::CLIMATE_MODE_DRY;
+          }
+          else if (mode == 2)
+          {
+            this->mode = climate::CLIMATE_MODE_FAN_ONLY;
+          }
+          else if (mode == 3)
+          {
+            // heat/cool is essentially auto
+            this->mode = climate::CLIMATE_MODE_HEAT_COOL;
+          }
+          else if (mode == 4)
+          {
+            this->mode = climate::CLIMATE_MODE_HEAT;
+          }
+          else
+          {
+            ESP_LOGE(TAG, "Invalid mode received: %d", mode);
+            this->mode = climate::CLIMATE_MODE_OFF;
+          }
+
+          // handle power state
+          if (power_state == 0)
+          {
+            this->mode = climate::CLIMATE_MODE_OFF;
+          }
+
+          // update state
+          publish_update = true;
+          this->mode_ = mode;
+          this->power_state_ = power_state;
         }
 
-        // handle power state
-        if (power_state == 0)
+        // swing options
+        uint8_t swing = (message[6] >> 3) & 1;
+        if (swing != this->swing_)
         {
-          this->mode = climate::CLIMATE_MODE_OFF;
-          this->action = climate::CLIMATE_ACTION_OFF;
+          if (swing == 0)
+          {
+            this->swing_mode = climate::CLIMATE_SWING_OFF;
+          }
+          else if (swing == 1)
+          {
+            this->swing_mode = climate::CLIMATE_SWING_VERTICAL;
+          }
+          else
+          {
+            ESP_LOGE(TAG, "Invalid swing received: %d", swing);
+          }
+
+          // update state
+          this->swing_ = swing;
+          publish_update = true;
         }
 
-        // update state
-        publish_update = true;
-        this->mode_ = mode;
-        this->power_state_ = power_state;
-      }
+        // fan speed
+        uint8_t fan_speed = ((message[6] >> 4) & 7);
+        if (fan_speed != this->fan_speed_)
+        {
+          if (fan_speed == 0)
+          {
+            this->fan_mode = climate::CLIMATE_FAN_LOW;
+          }
+          else if (fan_speed == 1)
+          {
+            this->fan_mode = climate::CLIMATE_FAN_MEDIUM;
+          }
+          else if (fan_speed == 2)
+          {
+            this->fan_mode = climate::CLIMATE_FAN_HIGH;
+          }
+          else
+          {
+            ESP_LOGE(TAG, "Invalid fan speed received: %d", fan_speed);
+          }
 
-      // swing options
-      uint8_t swing = (message[6] >> 3) & 1;
-      if (swing != this->swing_)
-      {
-        if (swing == 0)
-        {
-          this->swing_mode = climate::CLIMATE_SWING_OFF;
-        }
-        else if (swing == 1)
-        {
-          this->swing_mode = climate::CLIMATE_SWING_VERTICAL;
-        }
-        else
-        {
-          ESP_LOGE(TAG, "Invalid swing received: %d", swing);
-        }
-
-        // update state
-        this->swing_ = swing;
-        publish_update = true;
-      }
-
-      // fan speed
-      uint8_t fan_speed = ((message[6] >> 4) & 7);
-      if (fan_speed != this->fan_speed_)
-      {
-        if (fan_speed == 0)
-        {
-          this->fan_mode = climate::CLIMATE_FAN_LOW;
-        }
-        else if (fan_speed == 1)
-        {
-          this->fan_mode = climate::CLIMATE_FAN_MEDIUM;
-        }
-        else if (fan_speed == 2)
-        {
-          this->fan_mode = climate::CLIMATE_FAN_HIGH;
-        }
-        else
-        {
-          ESP_LOGE(TAG, "Invalid fan speed received: %d", fan_speed);
+          // update state
+          this->fan_speed_ = fan_speed;
+          publish_update = true;
         }
 
-        // update state
-        this->fan_speed_ = fan_speed;
-        publish_update = true;
-      }
+        // Target temperature in °C from LGAP frame
+        // Lower nibble of message[7] holds the integer offset (0 => 15°C, 1 => 16°C, etc.)
+        // This matches the LgController pattern: (buffer[6] & 0xF) + 15
+        // Note: LGAP protocol may not support half-degree increments like the single-head controller
+        uint8_t raw_target = message[7] & 0x0F;
+        float target_temperature = static_cast<float>(raw_target + 15);
+        
+        // If LGAP protocol supports half-degree flag (similar to single-head), add here:
+        // if (message[X] & 0x1) target_temperature += 0.5f;
+        
+        if (target_temperature != this->target_temperature_)
+        {
+          this->target_temperature_ = target_temperature;
+          this->target_temperature = target_temperature;
+          publish_update = true;
+        }
+      } // end of control state update block (write_update_pending check)
 
-      // target temp
-      int target_temperature = (message[7] & 0xf) + 15;
-      if (target_temperature != this->target_temperature_)
-      {
-        this->target_temperature_ = target_temperature;
-        this->target_temperature = target_temperature;
-        publish_update = true;
-      }
-
-      // current temp
+      // current temp - always update measurement data
       // TODO: implement precision setting for reported temperature
-      // int current_temperature = ((70 - message[8] * 100.0 / 256.0)) / 100.0;
-      int current_temperature = (message[8] & 0xf) + 15;
+      // OLD (wrong, uses only low nibble):
+      // int current_temperature = (message[8] & 0xf) + 15;
+      // NEW (from LG table: ~3 counts per °C, offset 192):
+      // Temp(°C) = floor((192 - raw_byte) / 3)
+      uint8_t raw = message[8];
+      int current_temperature = (192 - raw) / 3;  // integer division floors automatically
       ESP_LOGD(TAG, "Current temperature: %d", current_temperature);
       // checks that temperature is different AND that the publish time interval has passed
       if (current_temperature != this->current_temperature_)
       {
-        if (this->temperature_last_publish_time_ + this->temperature_publish_time_ <= millis())
+        // Publish immediately on first reading (temperature_last_publish_time_ == 0)
+        // or after the configured time interval has elapsed
+        bool is_first_reading = (this->temperature_last_publish_time_ == 0);
+        bool interval_elapsed = (this->temperature_last_publish_time_ + this->temperature_publish_time_ <= millis());
+        
+        if (is_first_reading || interval_elapsed)
         {
-          ESP_LOGD(TAG, "Temperature update time has lapsed. Sending update...");
+          ESP_LOGD(TAG, "Temperature update - %s. Sending update...", 
+                   is_first_reading ? "first reading" : "time interval elapsed");
           this->temperature_last_publish_time_ = millis();
           this->current_temperature_ = current_temperature;
           this->current_temperature = current_temperature;
@@ -374,46 +429,51 @@ namespace esphome
         }
       }
 
-      // determine climate action based on mode and temperature
-      climate::ClimateAction new_action = climate::CLIMATE_ACTION_OFF;
-      if (this->power_state_ == 1)
+      // Extract and decode pipe temperatures (message[9] = Pipe-In, message[10] = Pipe-Out)
+      // Using the same LG temperature mapping as room temp: Temp(°C) = (192 - raw) / 3
+      // These represent the refrigerant line temperatures for this zone
+      uint8_t raw_pipe_in = message[9];
+      uint8_t raw_pipe_out = message[10];
+      
+      float pipe_in_temp_c = lgap_raw_to_pipe_temp(raw_pipe_in);
+      float pipe_out_temp_c = lgap_raw_to_pipe_temp(raw_pipe_out);
+      
+      // Publish pipe-in temperature sensor if configured
+      if (this->pipe_in_sensor_ != nullptr)
       {
-        switch (this->mode_)
-        {
-          case 0: // cool
-            new_action = (this->current_temperature > this->target_temperature)
-                ? climate::CLIMATE_ACTION_COOLING
-                : climate::CLIMATE_ACTION_IDLE;
-            break;
-          case 1: // dry
-            new_action = climate::CLIMATE_ACTION_DRYING;
-            break;
-          case 2: // fan only
-            new_action = climate::CLIMATE_ACTION_FAN;
-            break;
-          case 3: // heat_cool (auto)
-            if (this->current_temperature > this->target_temperature)
-              new_action = climate::CLIMATE_ACTION_COOLING;
-            else if (this->current_temperature < this->target_temperature)
-              new_action = climate::CLIMATE_ACTION_HEATING;
-            else
-              new_action = climate::CLIMATE_ACTION_IDLE;
-            break;
-          case 4: // heat
-            new_action = (this->current_temperature < this->target_temperature)
-                ? climate::CLIMATE_ACTION_HEATING
-                : climate::CLIMATE_ACTION_IDLE;
-            break;
-          default:
-            new_action = climate::CLIMATE_ACTION_IDLE;
-            break;
-        }
+        this->pipe_in_sensor_->publish_state(pipe_in_temp_c);
       }
-
-      if (this->action != new_action)
+      
+      // Publish pipe-out temperature sensor if configured
+      if (this->pipe_out_sensor_ != nullptr)
       {
-        this->action = new_action;
-        publish_update = true;
+        this->pipe_out_sensor_->publish_state(pipe_out_temp_c);
+      }
+      
+      ESP_LOGD(TAG, "Pipe temps - In: %.1f°C (raw: %d), Out: %.1f°C (raw: %d)", 
+               pipe_in_temp_c, raw_pipe_in, pipe_out_temp_c, raw_pipe_out);
+
+      // Extract load/operation byte (Byte 11 in the response, NOT Byte 10!)
+      // Note: Byte 10 is pipe-out temp, load byte is actually at a different position
+      // This byte represents the unit's operation rate/load (0-255)
+      // TODO: Verify the correct byte position for load_byte in the 16-byte frame
+      uint8_t load_byte = message[11];  // Changed from message[10] to avoid conflict with pipe_out
+      if (load_byte != this->load_byte_)
+      {
+        ESP_LOGD(TAG, "Load byte changed: %d -> %d", this->load_byte_, load_byte);
+        this->load_byte_ = load_byte;
+        
+        // Publish load byte to sensor (always shows value whether unit is on or off)
+        if (this->load_byte_sensor_ != nullptr)
+        {
+          this->load_byte_sensor_->publish_state(load_byte);
+        }
+        
+        // Trigger power recalculation in parent
+        if (this->parent_ != nullptr)
+        {
+          this->parent_->calculate_and_publish_power();
+        }
       }
 
       // send update to home assistant with all the changed variables
