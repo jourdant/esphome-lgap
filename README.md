@@ -110,7 +110,35 @@ On my ODU there are 4 internal pins right next to each other that specify 12V, G
 
 ![img](./images/323773928-f7eeaa1f-5c5c-4174-b05f-4a951c122593.jpg)
 
-You can also in theory wire this same configuration to an older generation LG ODU that has compatibility with the PI-485 expansion board. The PI-485 board adds an LGAP interface to an ODU. As of right now this project hasn't been tested with the PI-485, but all the documentation points to this working. If you test it and it works, let me know!
+#### PI-485 Expansion Board
+
+For older LG ODUs that don't have onboard CEN_A/CEN_B pins, the [PI-485 expansion board](https://www.lgvrf.ca/en/products/pi~485) adds an LGAP interface. This has been **tested and confirmed working** (thanks to [@tolkachev](https://github.com/tolkachev) via [PR #15](https://github.com/jourdant/esphome-lgap/pull/15)).
+
+**PI-485 DIP Switch Settings:**
+
+| Switch | Position | Purpose |
+|--------|----------|---------|
+| 1 | ON | Enable RS485 communication |
+| 2 | OFF | — |
+| 3 | OFF | — |
+| 4 | ON | Enable LGAP protocol mode |
+| 5 | ON | — |
+| 6-8 | OFF | — |
+
+**Setup Steps:**
+
+1. **Set IDU addresses** — Each indoor unit must have a unique address set via the wired remote/thermostat. Without this, the PI-485 won't detect the units.
+2. **Check the red LED** — On PI-485 boot, the red LED blinks once per detected indoor unit. If it doesn't blink, your IDU addresses aren't set.
+3. **Wire A to A, B to B** — Connect the PI-485 RS485 terminals to the ATOMIC RS485 Base. No need to swap A/B. Termination resistors (120 Ohm) are not required.
+4. **Set `tx_byte_0: 0x80`** in your YAML config (this is the default value in the current code). The PI-485 requires this specific first byte to respond.
+5. **Check the green LED** — Once ESPHome is running, the green LED should blink indicating RS485 data activity. If it doesn't blink, the PI-485 isn't processing requests.
+
+**Confirmed working hardware:**
+- ODU: FM40AH UH0 (AGUW406FAO) + 4 IDU
+- Multi-F systems with PI-485
+- M5Stack Atom Lite + ATOMIC RS485 Base
+
+> **Note:** The PI-485 can also be powered from the ODU's 12V pins, same as the direct CEN_A/CEN_B wiring method.
 
 ### 3. Esphome manifest
 
